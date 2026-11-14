@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets — ne jamais committer la clé API
+.env
+*.env
+
+# Index régénérable depuis les PDF
+data/rules.db
+
+# Règles : gros binaires (158 Mo), gardés localement, hors git
+# (sources régénérables ; utiliser git-lfs si un versionnement est souhaité)
+rules/**/*.pdf
+rules/**/*.zip
