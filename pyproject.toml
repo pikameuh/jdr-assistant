@@ -1,0 +1,27 @@
+[project]
+name = "agent-jdr"
+version = "0.1.0"
+description = "Assistant du meneur pour Metal Adventures 1.5 : répliques de PNJ cohérentes avec les règles."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+# Outils de construction de l'index (hors exécution de l'agent).
+build = ["pymupdf>=1.24"]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_jdr"]
+
+[tool.uv]
+default-groups = ["build", "dev"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "retrieval: tests de récupération sur l'index réel (nécessite les PDF dans rules/)",
+]

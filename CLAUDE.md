@@ -44,7 +44,13 @@ agent_jdr/
 Couches 1–3 à chaque commit ; couche 4 à part (plus lente/coûteuse).
 
 ## Commandes
-_À compléter quand l'outillage sera posé (install, lancement tests, lint, construction de l'index)._
+Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build* uniquement (groupe `build`) : seul `core/rules_extract.py` l'importe, jamais l'agent en exécution.
+
+- Installation : `uv sync`
+- Construire l'index des règles (≈ 8 s) : `uv run python -m agent_jdr.core.rules_index build`
+- Interroger l'index : `uv run python -m agent_jdr.core.rules_index search "faire le plein" -n 5`
+- Tests couches 1–2 : `uv run pytest` (les tests de récupération reconstruisent l'index depuis les PDF dans un dossier temporaire ; ignorés si les PDF sont absents)
+- Lint : _non configuré_
 
 ## Sources
 Règles dans `rules/MA - Manuel des joueurs 1.5/` : **Guide du Meneur** (258 p.) + **Manuel des joueurs** (290 p.), FR. Gros binaires gardés hors git (voir `.gitignore`).
