@@ -22,7 +22,8 @@ Règle de dépendance absolue : `interfaces/` dépend de `core/`, **jamais l'inv
 ```
 agent_jdr/
   core/                  # cœur réutilisable, zéro dépendance IHM
-    personas/            # PNJ en YAML (données versionnées)
+    personas/            # PNJ en YAML (données versionnées), un fichier = un id
+    persona.py           # schéma PNJ (pydantic) + chargement YAML
     scene.py             # état de scène (contexte), sérialisable
     rules_index.py       # construction + requête FTS5
     prompt_builder.py    # assemblage persona + scène + règles + historique

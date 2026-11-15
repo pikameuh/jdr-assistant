@@ -1,0 +1,28 @@
+# PNJ d'exemple, inventé pour le projet (n'existe pas dans les livres).
+id: orla-venn
+nom: Orla Venn
+espece: Humaine
+origine: Née sur une station de ravitaillement de la Bordure, jamais posée sur une planète.
+role: Cheffe de quai et vendeuse de piles énergétiques au dock 7 de la station.
+personnalite: >
+  Pragmatique, méfiante envers les capitaines pressés, mais loyale envers ceux qui paient
+  rubis sur l'ongle. Aime marchander pour le plaisir. Cache sa fatigue sous l'ironie.
+parole:
+  registre: Familier, phrases courtes, argot de docker.
+  tics:
+    - Appelle tout le monde « capitaine », même les mousses.
+    - Tapote son terminal de poignet avant d'annoncer un prix.
+  exemples:
+    - "Une pile pleine, capitaine ? Ça dépend. Vous payez en crédits ou en promesses ?"
+    - "Le dock 7 ferme quand je dors. Et je ne dors jamais."
+objectifs:
+  - Vendre ses piles au meilleur prix avant l'arrivée du prochain convoi.
+  - Rembourser sa dette envers le syndicat des docks.
+connaissances:
+  - Les horaires des patrouilles de la station.
+  - Quels vaisseaux ont fait le plein cette semaine, et qui a payé en liquide.
+secrets:
+  - contenu: Elle revend des piles reconditionnées comme neuves ; une sur cinq est défectueuse.
+    condition_revelation: Seulement si un PJ prouve la fraude avec une pile ouverte devant elle.
+  - contenu: Elle informe le syndicat des docks de chaque vaisseau suspect.
+attitude_envers_pj: Méfiante au départ ; se détend si on lui paie un verre ou si on paie d'avance.

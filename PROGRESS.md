@@ -3,7 +3,7 @@
 **Dernière mise à jour : 2026-11-15**
 
 ## Reprise rapide (lire en premier)
-Phases 0 et 0.2 terminées. `data/rules.db` (FTS5, 2171 passages) se construit en ≈ 8 s. `search` répond aux questions de règles en français avec des sources citées (`core/rules_qa.py`, citations natives de l'API) ; `--brut` liste les passages sans LLM. Raccourci : `uv run search "…"`. 92 tests passent (`uv run pytest`, couches 1–3). **Éval couche 4 écrite mais jamais exécutée** : aucun identifiant Anthropic sur la machine de dev → à lancer avec `uv run pytest -m eval` dès qu'une clé est disponible. Prochaine étape : **Phase 1 — schéma persona YAML + état de scène + assembleur de prompt**.
+Phases 0, 0.2 et 1 terminées. Règles : `data/rules.db` (FTS5, 2171 passages), réponses sourcées via `uv run search "…"` (`core/rules_qa.py`). Phase 1 : fiches PNJ YAML validées (`core/persona.py`, exemple `core/personas/orla-venn.yaml`), scène immuable sérialisable (`core/scene.py`), assembleur `construire_prompt` → `system` (consignes + persona, stable ; puis scène) + `messages` (`core/prompt_builder.py`). 120 tests passent (`uv run pytest`, couches 1–3). **Éval couche 4 de la phase 0.2 jamais exécutée** (aucune clé API sur la machine de dev) → `uv run pytest -m eval` dès qu'une clé est disponible. Prochaine étape : **Phase 2 — moteur de dialogue** (appel Opus 4.8 + outil `rechercher_regle`, cache sur `system[0]`).
 
 ## État par phase
 
@@ -31,10 +31,10 @@ Hors périmètre : boucle tool use (le modèle relance lui-même la recherche), 
 - [x] `CLAUDE.md` > Commandes : nouveau comportement de `search` et option `--brut`.
 
 ### Phase 1 — Persona + contexte + assembleur
-- [ ] Schéma persona (YAML) + validation
-- [ ] État de scène sérialisable
-- [ ] Assembleur de prompt
-- [ ] Tests unitaires (couche 1)
+- [x] Schéma persona (YAML) + validation : `core/persona.py` (pydantic, champs inconnus refusés, id = nom du fichier), erreurs `PersonaInvalide` lisibles. Un PNJ inventé : `core/personas/orla-venn.yaml`.
+- [x] État de scène sérialisable : `core/scene.py` (immuable, `avec_fait`, `vers_json` / `depuis_json`).
+- [x] Assembleur de prompt : `core/prompt_builder.py` (`construire_prompt(persona, scene, historique)`).
+- [x] Tests unitaires (couche 1) : `test_persona.py`, `test_scene.py`, `test_prompt_builder.py` (28 tests).
 
 ### Phase 2 — Moteur de dialogue
 - [ ] Appel Opus 4.8 + tool use `rechercher_regle`
@@ -72,6 +72,7 @@ Hors périmètre : boucle tool use (le modèle relance lui-même la recherche), 
 
 - **2026-11-15** — Phase 0.2 : modèle `claude-opus-4-8` (figé par CLAUDE.md), thinking adaptatif explicite, un appel non streamé (`max_tokens` 16000). 8 passages envoyés par défaut (`-n`). Sources = citations `char_location` regroupées par passage, dans l'ordre de première citation ; renvois `[n]` dans le texte. Réponse refusée ou tronquée → erreur explicite. Sans identifiants, le SDK lève `TypeError` (pas une erreur API) : interceptée sur son message et convertie en `IdentifiantsAbsents`. Évals exclues par défaut (`addopts = -m 'not eval'`).
 - **2026-11-15** — Raccourci `uv run search "…"` : entrée `[project.scripts]` vers `rules_index.search_cli`, qui délègue à `main(["search", …])` (une seule analyse d'arguments). Clé API lue depuis l'environnement (`ANTHROPIC_API_KEY`), pas de `.env` chargé par le code.
+- **2026-11-15** — Phase 1 (choix utilisateur) : fiche PNJ **narrative seulement** (identité, personnalité, parole, objectifs, connaissances, secrets avec condition de révélation, attitude envers les PJ) ; pas de stats chiffrées, les règles passent par l'outil en phase 2. Scène : lieu, moment, ambiance, PNJ/PJ présents, enjeux, faits établis. Un PNJ d'exemple inventé. Validation par pydantic (déjà tiré par `anthropic`, désormais dépendance directe, avec `pyyaml`). Assembleur sans modèle ni outil ni `cache_control` (phase 2) ; `system[0]` = consignes + persona (identique d'une scène à l'autre, testé), `system[1]` = scène. Tours du joueur → `user` préfixés `[PJ]`, tours du PNJ → `assistant` ; l'historique doit commencer et finir par le joueur.
 
 ## Décisions ouvertes (pour plus tard)
 - Persistance de l'état de scène pour le web (sérialisation + gestion de sessions).
