@@ -7,6 +7,10 @@ dependencies = [
     "anthropic>=2.8.0",
 ]
 
+[project.scripts]
+# Raccourci : `uv run search "question"` (mêmes options que `rules_index search`).
+search = "agent_jdr.core.rules_index:search_cli"
+
 [dependency-groups]
 # Outils de construction de l'index (hors exécution de l'agent).
 build = ["pymupdf>=1.24"]

@@ -3,7 +3,7 @@
 **Dernière mise à jour : 2026-11-15**
 
 ## Reprise rapide (lire en premier)
-Phases 0 et 0.2 terminées. `data/rules.db` (FTS5, 2171 passages) se construit en ≈ 8 s. `search` répond aux questions de règles en français avec des sources citées (`core/rules_qa.py`, citations natives de l'API) ; `--brut` liste les passages sans LLM. 91 tests passent (`uv run pytest`, couches 1–3). **Éval couche 4 écrite mais jamais exécutée** : aucun identifiant Anthropic sur la machine de dev → à lancer avec `uv run pytest -m eval` dès qu'une clé est disponible. Prochaine étape : **Phase 1 — schéma persona YAML + état de scène + assembleur de prompt**.
+Phases 0 et 0.2 terminées. `data/rules.db` (FTS5, 2171 passages) se construit en ≈ 8 s. `search` répond aux questions de règles en français avec des sources citées (`core/rules_qa.py`, citations natives de l'API) ; `--brut` liste les passages sans LLM. Raccourci : `uv run search "…"`. 92 tests passent (`uv run pytest`, couches 1–3). **Éval couche 4 écrite mais jamais exécutée** : aucun identifiant Anthropic sur la machine de dev → à lancer avec `uv run pytest -m eval` dès qu'une clé est disponible. Prochaine étape : **Phase 1 — schéma persona YAML + état de scène + assembleur de prompt**.
 
 ## État par phase
 
@@ -71,6 +71,7 @@ Hors périmètre : boucle tool use (le modèle relance lui-même la recherche), 
 - **2026-11-15** — Ajout d'une phase 0.2 avant la phase 1 (demande utilisateur) : répondre aux questions de règles, pas seulement localiser les sections. Sources vérifiables par les citations natives de l'API (texte cité exact + passage d'origine) plutôt que par une liste rédigée par le modèle.
 
 - **2026-11-15** — Phase 0.2 : modèle `claude-opus-4-8` (figé par CLAUDE.md), thinking adaptatif explicite, un appel non streamé (`max_tokens` 16000). 8 passages envoyés par défaut (`-n`). Sources = citations `char_location` regroupées par passage, dans l'ordre de première citation ; renvois `[n]` dans le texte. Réponse refusée ou tronquée → erreur explicite. Sans identifiants, le SDK lève `TypeError` (pas une erreur API) : interceptée sur son message et convertie en `IdentifiantsAbsents`. Évals exclues par défaut (`addopts = -m 'not eval'`).
+- **2026-11-15** — Raccourci `uv run search "…"` : entrée `[project.scripts]` vers `rules_index.search_cli`, qui délègue à `main(["search", …])` (une seule analyse d'arguments). Clé API lue depuis l'environnement (`ANTHROPIC_API_KEY`), pas de `.env` chargé par le code.
 
 ## Décisions ouvertes (pour plus tard)
 - Persistance de l'état de scène pour le web (sérialisation + gestion de sessions).

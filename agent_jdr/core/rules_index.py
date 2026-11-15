@@ -216,5 +216,10 @@ def _repondre_cli(question: str, index: RulesIndex, limite: int) -> int:
     return 0
 
 
+def search_cli() -> int:
+    """Raccourci `uv run search "question"` (équivaut à `rules_index search …`)."""
+    return main(["search", *sys.argv[1:]])
+
+
 if __name__ == "__main__":
     sys.exit(main())

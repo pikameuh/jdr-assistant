@@ -89,3 +89,13 @@ def test_reconstruction_remplace_l_index(tmp_path):
 )
 def test_reference(p, attendu):
     assert p.reference() == attendu
+
+
+def test_raccourci_search_transmet_les_arguments(monkeypatch):
+    from agent_jdr.core import rules_index
+
+    recus = []
+    monkeypatch.setattr(rules_index, "main", lambda argv: recus.append(argv) or 0)
+    monkeypatch.setattr("sys.argv", ["search", "faire le plein", "--brut", "-n", "3"])
+    assert rules_index.search_cli() == 0
+    assert recus == [["search", "faire le plein", "--brut", "-n", "3"]]
