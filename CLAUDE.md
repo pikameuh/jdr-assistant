@@ -48,8 +48,10 @@ Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build*
 
 - Installation : `uv sync`
 - Construire l'index des règles (≈ 8 s) : `uv run python -m agent_jdr.core.rules_index build`
-- Interroger l'index : `uv run python -m agent_jdr.core.rules_index search "faire le plein" -n 5`
-- Tests couches 1–2 : `uv run pytest` (les tests de récupération reconstruisent l'index depuis les PDF dans un dossier temporaire ; ignorés si les PDF sont absents)
+- Question de règles (réponse en français + sources citées, appel à Claude, nécessite `ANTHROPIC_API_KEY`) : `uv run python -m agent_jdr.core.rules_index search "expliques moi la dispersion d'une grenade"` (`-n 8` = passages envoyés au modèle)
+- Débogage de la recherche (liste des passages, sans appel LLM) : `uv run python -m agent_jdr.core.rules_index search "faire le plein" --brut -n 5`
+- Tests couches 1–3 : `uv run pytest` (les tests de récupération reconstruisent l'index depuis les PDF dans un dossier temporaire ; ignorés si les PDF sont absents)
+- Évals couche 4 (LLM réel, payant) : `uv run pytest -m eval` (exclues par défaut ; ignorées sans identifiants)
 - Lint : _non configuré_
 
 ## Sources

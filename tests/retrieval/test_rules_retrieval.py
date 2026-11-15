@@ -59,6 +59,14 @@ def test_requete_trouve_le_passage_attendu(index, requete, livre, page):
     ), f"{livre} p. {page} absent du top {TOP} : {trouves}"
 
 
+def test_dispersion_grenade_en_tete(index):
+    """Question de référence de la phase 0.2 : la règle de dispersion doit arriver en premier."""
+    premier = index.rechercher("expliques moi la dispersion d'une grenade")[0].passage
+    assert (premier.livre, premier.page, premier.sous_section) == (
+        MJ, 174, "Dispersion et aire d’effet"
+    ), premier.reference()
+
+
 def test_deux_livres_indexes(passages):
     livres = {p.livre for p in passages}
     assert livres == {MJ, GDM}

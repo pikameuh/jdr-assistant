@@ -3,7 +3,9 @@ name = "agent-jdr"
 version = "0.1.0"
 description = "Assistant du meneur pour Metal Adventures 1.5 : répliques de PNJ cohérentes avec les règles."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "anthropic>=2.8.0",
+]
 
 [dependency-groups]
 # Outils de construction de l'index (hors exécution de l'agent).
@@ -22,6 +24,9 @@ default-groups = ["build", "dev"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Les évals (couche 4, LLM réel) sont exclues par défaut : `uv run pytest -m eval`.
+addopts = "-m 'not eval'"
 markers = [
     "retrieval: tests de récupération sur l'index réel (nécessite les PDF dans rules/)",
+    "eval: évals sur le LLM réel (lentes, payantes, nécessitent des identifiants)",
 ]

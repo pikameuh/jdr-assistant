@@ -172,10 +172,15 @@ def main(argv: list[str] | None = None) -> int:
     build = sous.add_parser("build", help="Construire l'index depuis les PDF")
     build.add_argument("--regles", type=Path, default=DOSSIER_REGLES_DEFAUT)
     build.add_argument("--db", type=Path, default=DB_DEFAUT)
-    cherche = sous.add_parser("search", help="Interroger l'index")
+    cherche = sous.add_parser(
+        "search", help="Répondre à une question de règles, avec sources (appel à Claude)"
+    )
     cherche.add_argument("requete")
-    cherche.add_argument("-n", type=int, default=5)
+    cherche.add_argument("-n", type=int, default=8, help="nombre de passages récupérés")
     cherche.add_argument("--db", type=Path, default=DB_DEFAUT)
+    cherche.add_argument(
+        "--brut", action="store_true", help="lister les passages trouvés, sans appel au modèle"
+    )
     args = parser.parse_args(argv)
 
     if args.commande == "build":
@@ -183,11 +188,31 @@ def main(argv: list[str] | None = None) -> int:
 
         n = construire_index(extraire_regles(args.regles), args.db)
         print(f"{n} passages indexés dans {args.db}")
-    else:
-        with RulesIndex(args.db) as index:
+        return 0
+
+    with RulesIndex(args.db) as index:
+        if args.brut:
             for r in index.rechercher(args.requete, args.n):
                 print(f"[{r.score:.2f}] {r.passage.reference()}")
                 print("    " + r.passage.texte[:200].replace("\n", " ") + "…")
+            return 0
+        return _repondre_cli(args.requete, index, args.n)
+
+
+def _repondre_cli(question: str, index: RulesIndex, limite: int) -> int:
+    import anthropic
+
+    from agent_jdr.core import rules_qa
+
+    try:
+        reponse = rules_qa.repondre(question, index, limite=limite)
+    except (rules_qa.IdentifiantsAbsents, rules_qa.ReponseIncomplete) as e:
+        print(f"Erreur : {e}", file=sys.stderr)
+        return 1
+    except anthropic.APIError as e:
+        print(f"Erreur de l'API Anthropic : {e.message}", file=sys.stderr)
+        return 1
+    print(rules_qa.formater_reponse(reponse))
     return 0
 
 
