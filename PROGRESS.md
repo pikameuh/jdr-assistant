@@ -3,7 +3,7 @@
 **Dernière mise à jour : 2026-11-15**
 
 ## Reprise rapide (lire en premier)
-Phases 0, 0.2 et 1 terminées. Règles : `data/rules.db` (FTS5, 2171 passages), réponses sourcées via `uv run search "…"` (`core/rules_qa.py`). Phase 1 : fiches PNJ YAML validées (`core/persona.py`, exemple `core/personas/orla-venn.yaml`), scène immuable sérialisable (`core/scene.py`), assembleur `construire_prompt` → `system` (consignes + persona, stable ; puis scène) + `messages` (`core/prompt_builder.py`). 120 tests passent (`uv run pytest`, couches 1–3). **Éval couche 4 de la phase 0.2 jamais exécutée** (aucune clé API sur la machine de dev) → `uv run pytest -m eval` dès qu'une clé est disponible. Prochaine étape : **Phase 2 — moteur de dialogue** (appel Opus 4.8 + outil `rechercher_regle`, cache sur `system[0]`).
+Phases 0, 0.2, 1 et 2 terminées. Règles : `data/rules.db` (FTS5, 2171 passages), réponses sourcées via `uv run search "…"`. Fiches PNJ YAML (`core/persona.py`, exemple `orla-venn`), scène (`core/scene.py`), assembleur (`core/prompt_builder.py`). Moteur de dialogue `core/dialogue_engine.py` (Opus 4.8, outil `rechercher_regle`, cache) et CLI `uv run parler orla-venn --lieu … --moment … --pj …` (`interfaces/cli.py`). 142 tests passent (`uv run pytest`, couches 1–3). **Rien n'a encore tourné sur le vrai modèle** (aucune clé API sur la machine de dev) : premier essai = `uv run parler …`, puis `uv run pytest -m eval`. Effet réel du cache non mesuré (minimum 1024 jetons sur Opus 4.8 ; vérifier `usage.cache_read_input_tokens`). Prochaine étape : **Phase 3 — évals de dialogue** (reste en personnage, garde ses secrets, consulte les règles).
 
 ## État par phase
 
@@ -37,13 +37,14 @@ Hors périmètre : boucle tool use (le modèle relance lui-même la recherche), 
 - [x] Tests unitaires (couche 1) : `test_persona.py`, `test_scene.py`, `test_prompt_builder.py` (28 tests).
 
 ### Phase 2 — Moteur de dialogue
-- [ ] Appel Opus 4.8 + tool use `rechercher_regle`
-- [ ] Prompt caching sur la partie stable
-- [ ] Tests d'orchestration mockés (couche 3)
+- [x] Appel Opus 4.8 + tool use `rechercher_regle` : `core/dialogue_engine.py`, `MoteurDialogue.repondre` → `Replique` (texte + règles consultées). Boucle limitée à 4 tours de recherche ; refus, troncature, réplique vide → `ReponseIncomplete` ; l'historique ne garde que les tours réussis.
+- [x] Prompt caching sur la partie stable : `cache_control` sur `system[0]` (consignes + persona) + cache automatique en fin de conversation. **Non mesuré** (pas de clé).
+- [x] Tests d'orchestration mockés (couche 3) : `tests/orchestration/test_dialogue_engine.py` (22 tests, moteur + CLI).
+- [x] Avancé depuis la phase 3 (demande utilisateur) : CLI `uv run parler` (`interfaces/cli.py`), commandes `/fait` et `/quitter`.
 
 ### Phase 3 — Évals + CLI
 - [ ] Jeu de scénarios d'évals (couche 4)
-- [ ] CLI minimale
+- [x] CLI minimale (faite en phase 2 : `uv run parler`)
 
 ## Notes techniques — PDF Metal Adventures 1.5
 - Texte de chaque page dessiné **deux fois** (passe propre + passe fragmentée superposée) → dédoublonnage des caractères par (caractère, x, y).
@@ -73,9 +74,9 @@ Hors périmètre : boucle tool use (le modèle relance lui-même la recherche), 
 - **2026-11-15** — Phase 0.2 : modèle `claude-opus-4-8` (figé par CLAUDE.md), thinking adaptatif explicite, un appel non streamé (`max_tokens` 16000). 8 passages envoyés par défaut (`-n`). Sources = citations `char_location` regroupées par passage, dans l'ordre de première citation ; renvois `[n]` dans le texte. Réponse refusée ou tronquée → erreur explicite. Sans identifiants, le SDK lève `TypeError` (pas une erreur API) : interceptée sur son message et convertie en `IdentifiantsAbsents`. Évals exclues par défaut (`addopts = -m 'not eval'`).
 - **2026-11-15** — Raccourci `uv run search "…"` : entrée `[project.scripts]` vers `rules_index.search_cli`, qui délègue à `main(["search", …])` (une seule analyse d'arguments). Clé API lue depuis l'environnement (`ANTHROPIC_API_KEY`), pas de `.env` chargé par le code.
 - **2026-11-15** — Phase 1 (choix utilisateur) : fiche PNJ **narrative seulement** (identité, personnalité, parole, objectifs, connaissances, secrets avec condition de révélation, attitude envers les PJ) ; pas de stats chiffrées, les règles passent par l'outil en phase 2. Scène : lieu, moment, ambiance, PNJ/PJ présents, enjeux, faits établis. Un PNJ d'exemple inventé. Validation par pydantic (déjà tiré par `anthropic`, désormais dépendance directe, avec `pyyaml`). Assembleur sans modèle ni outil ni `cache_control` (phase 2) ; `system[0]` = consignes + persona (identique d'une scène à l'autre, testé), `system[1]` = scène. Tours du joueur → `user` préfixés `[PJ]`, tours du PNJ → `assistant` ; l'historique doit commencer et finir par le joueur.
+- **2026-11-15** — Phase 2 : modèle `claude-opus-4-8` (CLAUDE.md), thinking adaptatif, non streamé, `max_tokens` 16000, effort par défaut. Outil `rechercher_regle` strict (`requete` seule) ; résultat = 5 passages en blocs texte « référence + texte », sans citations (le PNJ parle en personnage ; les références consultées sont affichées au meneur par la CLI). Entrée invalide ou outil inconnu → `tool_result` avec `is_error`, pas d'exception. Blocs de réflexion renvoyés tels quels pendant la boucle ; seul le texte final entre dans l'historique. Consigne ajoutée : consulter les règles avant toute réplique qui en dépend, n'inventer aucun chiffre. `rules_qa.appeler_api` factorise la conversion des erreurs d'identifiants (partagée par les deux usages). CLI avancée de la phase 3 à la demande de l'utilisateur.
 
 ## Décisions ouvertes (pour plus tard)
 - Persistance de l'état de scène pour le web (sérialisation + gestion de sessions).
 - Streaming des réponses (variante *stream* du moteur).
 - Éventuelle v2 vectorielle si la recherche FTS5 s'avère insuffisante.
-- Format de sortie de `rechercher_regle` pour le LLM (référence + texte) et nombre de résultats : à fixer en phase 2. La phase 0.2 en pose une première version (blocs `document` avec citations) ; la phase 2 la reprendra ou la remplacera.

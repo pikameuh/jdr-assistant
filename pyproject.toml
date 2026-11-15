@@ -12,6 +12,8 @@ dependencies = [
 [project.scripts]
 # Raccourci : `uv run search "question"` (mêmes options que `rules_index search`).
 search = "agent_jdr.core.rules_index:search_cli"
+# Dialogue avec un PNJ : `uv run parler orla-venn --lieu … --moment … --pj …`.
+parler = "agent_jdr.interfaces.cli:main"
 
 [dependency-groups]
 # Outils de construction de l'index (hors exécution de l'agent).

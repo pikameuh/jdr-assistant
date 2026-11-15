@@ -1,0 +1,105 @@
+"""CLI de dialogue avec un PNJ : `uv run parler <persona> --lieu … --moment … --pj …`.
+
+Client mince : toute la logique est dans `core`. Commandes en cours de partie :
+`/fait <texte>` ajoute un fait établi à la scène, `/quitter` termine.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import anthropic
+
+from agent_jdr.core.dialogue_engine import MoteurDialogue
+from agent_jdr.core.persona import DOSSIER_PERSONAS, PersonaInvalide, charger_personas
+from agent_jdr.core.rules_index import DB_DEFAUT, RulesIndex
+from agent_jdr.core.rules_qa import IdentifiantsAbsents, ReponseIncomplete
+from agent_jdr.core.scene import Scene
+
+
+def _erreur(message: str) -> None:
+    print(f"Erreur : {message}", file=sys.stderr)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="parler", description=__doc__)
+    parser.add_argument("persona", help="id de la fiche PNJ (nom du fichier sans .yaml)")
+    parser.add_argument("--lieu", required=True)
+    parser.add_argument("--moment", required=True)
+    parser.add_argument("--pj", required=True, help="nom du personnage joueur qui parle")
+    parser.add_argument("--ambiance", default="")
+    parser.add_argument("--enjeux", default="")
+    parser.add_argument("--personas", type=Path, default=DOSSIER_PERSONAS)
+    parser.add_argument("--db", type=Path, default=DB_DEFAUT)
+    args = parser.parse_args(argv)
+
+    try:
+        personas = charger_personas(args.personas)
+    except PersonaInvalide as e:
+        _erreur(str(e))
+        return 1
+    if args.persona not in personas:
+        _erreur(f"PNJ inconnu « {args.persona} ». Disponibles : {', '.join(personas) or 'aucun'}")
+        return 1
+    persona = personas[args.persona]
+    scene = Scene(
+        lieu=args.lieu,
+        moment=args.moment,
+        ambiance=args.ambiance,
+        pnj_presents=(persona.id,),
+        pj_presents=(args.pj,),
+        enjeux=args.enjeux,
+    )
+    try:
+        index = RulesIndex(args.db)
+    except FileNotFoundError as e:
+        _erreur(str(e))
+        return 1
+
+    try:
+        import readline  # noqa: F401  (édition de ligne et historique au clavier)
+    except ImportError:
+        pass
+
+    with index:
+        moteur = MoteurDialogue(persona, scene, index)
+        print(f"Vous parlez à {persona.nom}. /fait <texte> : ajouter un fait ; /quitter : sortir.")
+        while True:
+            try:
+                ligne = input(f"{args.pj} > ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return 0
+            if not ligne:
+                continue
+            if ligne == "/quitter":
+                return 0
+            if ligne.startswith("/fait"):
+                fait = ligne.removeprefix("/fait").strip()
+                if not fait:
+                    print("Usage : /fait <texte>")
+                    continue
+                moteur.scene = moteur.scene.avec_fait(fait)
+                print(f"(fait ajouté : {fait})")
+                continue
+            try:
+                replique = moteur.repondre(ligne, pj=args.pj)
+            except IdentifiantsAbsents as e:
+                _erreur(str(e))
+                return 1
+            except ReponseIncomplete as e:
+                _erreur(f"{e} (tour non enregistré, vous pouvez reformuler)")
+                continue
+            except anthropic.APIError as e:
+                _erreur(f"API Anthropic : {e.message} (tour non enregistré)")
+                continue
+            print(f"{persona.nom} > {replique.texte}")
+            if replique.regles_consultees:
+                refs = "; ".join(p.reference() for p in replique.regles_consultees)
+                print(f"    (règles consultées : {refs})")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

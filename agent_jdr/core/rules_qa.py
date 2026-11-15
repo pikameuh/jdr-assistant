@@ -149,20 +149,31 @@ def repondre(
     if not passages:
         return Reponse((Segment(MESSAGE_AUCUN_PASSAGE),), (), ())
 
-    client = client or anthropic.Anthropic()
+    message = appeler_api(client or anthropic.Anthropic(), construire_requete(question, passages))
+    return lire_reponse(message, passages)
+
+
+def _identifiants_absents(e: TypeError) -> Exception:
+    # Le SDK lève TypeError quand aucune méthode d'authentification n'est configurée.
+    if "authentication method" not in str(e):
+        return e
+    return IdentifiantsAbsents(
+        "Aucun identifiant Anthropic trouvé. Définir la variable ANTHROPIC_API_KEY "
+        "(ou se connecter avec `ant auth login`)."
+    )
+
+
+def appeler_api(client: anthropic.Anthropic, params: dict[str, Any]) -> Any:
+    """`client.messages.create(**params)`, erreurs d'identifiants converties en `IdentifiantsAbsents`."""
     try:
-        message = client.messages.create(**construire_requete(question, passages))
+        return client.messages.create(**params)
     except anthropic.AuthenticationError as e:
         raise IdentifiantsAbsents(f"Identifiants Anthropic refusés : {e.message}") from e
     except TypeError as e:
-        # Le SDK lève TypeError quand aucune méthode d'authentification n'est configurée.
-        if "authentication method" not in str(e):
+        converti = _identifiants_absents(e)
+        if converti is e:
             raise
-        raise IdentifiantsAbsents(
-            "Aucun identifiant Anthropic trouvé. Définir la variable ANTHROPIC_API_KEY "
-            "(ou se connecter avec `ant auth login`)."
-        ) from e
-    return lire_reponse(message, passages)
+        raise converti from e
 
 
 # --- Rendu texte ------------------------------------------------------------------

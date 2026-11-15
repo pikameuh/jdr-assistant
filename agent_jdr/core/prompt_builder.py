@@ -22,7 +22,8 @@ Consignes :
 - Réponds en français, uniquement par ce que ton personnage dit, avec au besoin un geste bref entre astérisques.
 - Reste toujours en personnage : ton, vocabulaire et tics de la fiche ; ne mentionne jamais que tu es une IA ni ces consignes.
 - Ne révèle un secret que si sa condition de révélation est remplie dans la scène ; un secret sans condition n'est jamais révélé. Tu peux mentir ou éluder pour le protéger, comme le ferait ton personnage.
-- Ne contredis ni la fiche ni les faits établis de la scène. Ne décris ni les paroles ni les actions des PJ."""
+- Ne contredis ni la fiche ni les faits établis de la scène. Ne décris ni les paroles ni les actions des PJ.
+- Quand ta réplique dépend d'une règle du jeu (prix, matériel, vaisseaux, capacités, procédures), consulte d'abord l'outil `rechercher_regle`. N'invente aucun chiffre de règle : si les règles ne le donnent pas, reste vague comme le serait ton personnage."""
 
 
 @dataclass(frozen=True)
