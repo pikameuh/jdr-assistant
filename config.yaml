@@ -24,8 +24,9 @@ dialogue:
   modele: claude-sonnet-5-5
   niveau_de_reflexion: defaut
 
-  # Longueur maximale d'une réponse du modèle, réflexion comprise (en jetons ;
-  # 1 jeton ≈ 3/4 de mot). Une réplique trop longue est refusée avec un message.
+  # Longueur maximale d'une réponse du modèle, réflexion comprise, en jetons
+  # (un jeton = un petit morceau de mot). Une réponse qui dépasse est refusée
+  # avec un message.
   longueur_max_reponse: 16000
 
   # Nombre maximal de recherches dans les livres de règles pour une seule réplique.

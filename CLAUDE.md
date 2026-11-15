@@ -59,6 +59,7 @@ Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build*
 - Raccourci, mêmes options : `uv run search "faire le plein"` (entrée `[project.scripts]`).
 - Parler à un PNJ (appel à Claude, nécessite la clé) : `uv run parler orla-venn --lieu "Dock 7" --moment "Cycle de nuit" --pj Kael` ; en partie : `/fait <texte>` ajoute un fait à la scène, `/quitter` sort.
 - Toutes les commandes acceptent `--config autre.yaml`.
+- Manuel utilisateur (non-développeur) : `MANUEL.md`. Le tenir à jour quand une commande, un réglage ou un message d'erreur change.
 - Clé API : `export ANTHROPIC_API_KEY=sk-ant-…` dans `~/.zshrc` (clé créée sur console.anthropic.com). Jamais dans le dépôt.
 - Tests couches 1–3 : `uv run pytest` (les tests de récupération reconstruisent l'index depuis les PDF dans un dossier temporaire ; ignorés si les PDF sont absents)
 - Évals couche 4 (LLM réel, payant) : `uv run pytest -m eval` (exclues par défaut ; ignorées sans identifiants)
