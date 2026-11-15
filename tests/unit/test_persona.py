@@ -1,11 +1,14 @@
 import pytest
 
+from agent_jdr.core.config import charger_config
 from agent_jdr.core.persona import (
-    DOSSIER_PERSONAS,
     PersonaInvalide,
     charger_persona,
     charger_personas,
 )
+
+# Fiches livrées avec le projet, à l'emplacement indiqué par config.yaml.
+DOSSIER_PERSONAS = charger_config().fichiers.dossier_des_pnj
 
 FICHE_MINIMALE = """\
 id: {id}
@@ -28,7 +31,7 @@ def ecrire(dossier, nom, contenu):
 
 
 def test_toutes_les_fiches_livrees_sont_valides():
-    personas = charger_personas()
+    personas = charger_personas(DOSSIER_PERSONAS)
     assert "orla-venn" in personas
     assert all(p.id == i for i, p in personas.items())
 

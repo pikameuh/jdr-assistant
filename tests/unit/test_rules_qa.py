@@ -4,13 +4,14 @@ import pytest
 
 from agent_jdr.core.rules_index import Passage
 from agent_jdr.core.rules_qa import (
-    CONSIGNE_SYSTEME,
-    MODELE,
     ReponseIncomplete,
     formater_reponse,
     lire_reponse,
     construire_requete,
 )
+from tests.reglages_test import CONFIG_TEST, CONSIGNES_REGLES
+
+REGLAGES = CONFIG_TEST.questions_de_regles
 
 GRENADE = Passage(
     "Manuel des joueurs", 174, 174, "Le combat à distance", "Le combat à distance",
@@ -24,7 +25,7 @@ PASSAGES = [GRENADE, GABARIT]
 
 
 def test_requete_un_document_par_passage_avec_citations():
-    requete = construire_requete("Comment dévie une grenade ?", PASSAGES)
+    requete = construire_requete("Comment dévie une grenade ?", PASSAGES, REGLAGES)
     contenu = requete["messages"][0]["content"]
     documents = [b for b in contenu if b["type"] == "document"]
     assert [d["title"] for d in documents] == [p.reference() for p in PASSAGES]
@@ -35,14 +36,18 @@ def test_requete_un_document_par_passage_avec_citations():
     assert contenu[-1] == {"type": "text", "text": "Comment dévie une grenade ?"}
 
 
-def test_requete_modele_reflexion_et_consigne():
-    requete = construire_requete("q", PASSAGES)
-    assert requete["model"] == MODELE == "claude-opus-4-8"
+def test_requete_reglages_de_la_configuration():
+    requete = construire_requete("q", PASSAGES, REGLAGES)
+    assert requete["model"] == "claude-test-regles"
+    assert requete["max_tokens"] == 2000
     assert requete["thinking"] == {"type": "adaptive"}
-    assert requete["system"] == CONSIGNE_SYSTEME
-    assert "français" in CONSIGNE_SYSTEME
-    assert "uniquement sur les documents fournis" in CONSIGNE_SYSTEME
-    assert "dis-le explicitement" in CONSIGNE_SYSTEME
+    assert requete["system"] == CONSIGNES_REGLES
+    assert "output_config" not in requete  # niveau de réflexion « defaut »
+
+
+def test_requete_niveau_de_reflexion():
+    reglages = REGLAGES.model_copy(update={"niveau_de_reflexion": "bas"})
+    assert construire_requete("q", PASSAGES, reglages)["output_config"] == {"effort": "low"}
 
 
 def test_sources_issues_des_citations_dedoublonnees_par_passage(message_factice):

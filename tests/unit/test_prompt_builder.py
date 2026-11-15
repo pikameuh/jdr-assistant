@@ -1,10 +1,17 @@
 import pytest
 
-from agent_jdr.core.persona import DOSSIER_PERSONAS, charger_persona
-from agent_jdr.core.prompt_builder import CONSIGNES, Tour, construire_prompt
+from agent_jdr.core.config import charger_config
+from agent_jdr.core.persona import charger_persona
+from agent_jdr.core.prompt_builder import Tour
+from agent_jdr.core.prompt_builder import construire_prompt as _construire_prompt
 from agent_jdr.core.scene import Scene
 
-ORLA = charger_persona(DOSSIER_PERSONAS / "orla-venn.yaml")
+ORLA = charger_persona(charger_config().fichiers.dossier_des_pnj / "orla-venn.yaml")
+CONSIGNES = "Consignes de test."
+
+
+def construire_prompt(persona, scene, historique):
+    return _construire_prompt(persona, scene, historique, CONSIGNES)
 SCENE = Scene(
     lieu="Dock 7",
     moment="Cycle de nuit",

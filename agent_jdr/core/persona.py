@@ -1,6 +1,6 @@
 """Fiches PNJ : schéma validé et chargement depuis YAML.
 
-Une fiche par fichier `core/personas/<id>.yaml`. Contenu narratif uniquement :
+Une fiche par fichier `<id>.yaml`, dans le dossier `fichiers.dossier_des_pnj` de la configuration. Contenu narratif uniquement :
 les valeurs chiffrées du jeu restent dans les livres de règles.
 """
 
@@ -10,8 +10,6 @@ from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-
-DOSSIER_PERSONAS = Path(__file__).parent / "personas"
 
 Texte = Field(min_length=1)
 
@@ -74,6 +72,6 @@ def charger_persona(chemin: Path) -> Persona:
     return persona
 
 
-def charger_personas(dossier: Path = DOSSIER_PERSONAS) -> dict[str, Persona]:
+def charger_personas(dossier: Path) -> dict[str, Persona]:
     """Toutes les fiches `*.yaml` du dossier, indexées par id."""
     return {p.stem: charger_persona(p) for p in sorted(dossier.glob("*.yaml"))}

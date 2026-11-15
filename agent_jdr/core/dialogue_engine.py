@@ -12,16 +12,12 @@ from typing import Any
 
 import anthropic
 
+from agent_jdr.core.config import ReglagesDialogue
 from agent_jdr.core.persona import Persona
 from agent_jdr.core.prompt_builder import Tour, construire_prompt
 from agent_jdr.core.rules_index import Passage, RulesIndex
 from agent_jdr.core.rules_qa import ReponseIncomplete, appeler_api
 from agent_jdr.core.scene import Scene
-
-MODELE = "claude-opus-4-8"
-MAX_TOKENS = 16000
-MAX_TOURS_OUTILS = 4  # appels au modèle qui demandent une recherche, par réplique
-PASSAGES_PAR_RECHERCHE = 5
 
 OUTIL_REGLES = {
     "name": "rechercher_regle",
@@ -57,7 +53,7 @@ class Replique:
 
 
 def construire_appel(
-    system: list[dict[str, Any]], messages: list[dict[str, Any]]
+    system: list[dict[str, Any]], messages: list[dict[str, Any]], reglages: ReglagesDialogue
 ) -> dict[str, Any]:
     """Paramètres complets de `messages.create`, à partir de la sortie de `construire_prompt`.
 
@@ -67,9 +63,7 @@ def construire_appel(
     system = [dict(bloc) for bloc in system]
     system[0]["cache_control"] = {"type": "ephemeral"}
     return {
-        "model": MODELE,
-        "max_tokens": MAX_TOKENS,
-        "thinking": {"type": "adaptive"},
+        **reglages.parametres_modele(),
         "cache_control": {"type": "ephemeral"},
         "tools": [OUTIL_REGLES],
         "system": system,
@@ -77,12 +71,14 @@ def construire_appel(
     }
 
 
-def executer_recherche(index: RulesIndex, entree: Any) -> tuple[dict[str, Any], list[Passage]]:
+def executer_recherche(
+    index: RulesIndex, entree: Any, nb_passages: int
+) -> tuple[dict[str, Any], list[Passage]]:
     """Exécute un appel à `rechercher_regle` → (bloc tool_result sans id, passages)."""
     requete = entree.get("requete") if isinstance(entree, dict) else None
     if not isinstance(requete, str) or not requete.strip():
         return {"content": "Paramètre `requete` manquant ou vide.", "is_error": True}, []
-    passages = [r.passage for r in index.rechercher(requete, PASSAGES_PAR_RECHERCHE)]
+    passages = [r.passage for r in index.rechercher(requete, nb_passages)]
     if not passages:
         return {"content": AUCUN_PASSAGE}, []
     contenu = [{"type": "text", "text": f"{p.reference()}\n{p.texte}"} for p in passages]
@@ -94,6 +90,7 @@ class MoteurDialogue:
     persona: Persona
     scene: Scene
     index: RulesIndex
+    reglages: ReglagesDialogue
     client: anthropic.Anthropic | None = None
     historique: list[Tour] = field(default_factory=list)
 
@@ -105,12 +102,15 @@ class MoteurDialogue:
         client = self.client or anthropic.Anthropic()
         tour_joueur = Tour("joueur", texte, pj=pj)
         # Valide persona/scène/historique ; system + messages initiaux.
-        prompt = construire_prompt(self.persona, self.scene, [*self.historique, tour_joueur])
+        prompt = construire_prompt(
+            self.persona, self.scene, [*self.historique, tour_joueur], self.reglages.consignes
+        )
         messages = prompt["messages"]
         consultees: list[Passage] = []
 
-        for _ in range(MAX_TOURS_OUTILS + 1):
-            message = appeler_api(client, construire_appel(prompt["system"], messages))
+        max_recherches = self.reglages.recherches_max_par_replique
+        for _ in range(max_recherches + 1):
+            message = appeler_api(client, construire_appel(prompt["system"], messages, self.reglages))
             if message.stop_reason == "refusal":
                 raise ReponseIncomplete("Le modèle a refusé de produire cette réplique.")
             if message.stop_reason == "max_tokens":
@@ -122,7 +122,9 @@ class MoteurDialogue:
                 if bloc.type != "tool_use":
                     continue
                 if bloc.name == OUTIL_REGLES["name"]:
-                    resultat, passages = executer_recherche(self.index, bloc.input)
+                    resultat, passages = executer_recherche(
+                        self.index, bloc.input, self.reglages.passages_par_recherche
+                    )
                     consultees += [p for p in passages if p not in consultees]
                 else:
                     resultat = {"content": f"Outil inconnu : {bloc.name}", "is_error": True}
@@ -135,7 +137,7 @@ class MoteurDialogue:
             ]
         else:
             raise ReponseIncomplete(
-                f"Trop de recherches de règles ({MAX_TOURS_OUTILS}) sans réplique finale."
+                f"Trop de recherches de règles ({max_recherches}) sans réplique finale."
             )
 
         reponse = "".join(b.text for b in message.content if b.type == "text").strip()

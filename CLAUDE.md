@@ -14,14 +14,19 @@ Assistant du meneur pendant une partie : produire les répliques des PNJ en coh�
 - Langage : **Python**.
 - IHM : **CLI d'abord, back-end web ensuite** → le cœur doit rester indépendant de l'IHM.
 - Règles : **index SQLite FTS5** interrogé par un outil `rechercher_regle` (aucun service externe).
-- LLM : **Claude Opus 4.8** (`claude-opus-4-8`), adaptive thinking, prompt caching, tool use.
+- LLM : modèle Claude **choisi dans `config.yaml`** (défaut : `claude-sonnet-5-5`), adaptive thinking, prompt caching, tool use.
+
+## Configuration
+Tout réglage modifiable à la main est dans **`config.yaml`** (racine), noms en français, commentés, pensé pour un non-développeur : modèles, niveau de réflexion, longueurs, nombre de passages, **consignes données au modèle**, chemins. Aucune valeur par défaut cachée dans le code : un réglage manquant ou mal écrit est refusé avec un message en français. Le cœur reçoit ses réglages en paramètre ; seules les commandes lisent le fichier (`core/config.py`). Les tests utilisent leur propre configuration (`tests/reglages_test.py`), pour que l'édition de `config.yaml` ne les casse pas.
 
 ## Architecture
 Règle de dépendance absolue : `interfaces/` dépend de `core/`, **jamais l'inverse**. Le web réutilisera le `core/` tel quel.
 
 ```
+config.yaml              # configuration (modèles, consignes, chemins)
 agent_jdr/
   core/                  # cœur réutilisable, zéro dépendance IHM
+    config.py            # lecture + validation de config.yaml
     personas/            # PNJ en YAML (données versionnées), un fichier = un id
     persona.py           # schéma PNJ (pydantic) + chargement YAML
     scene.py             # état de scène (contexte), sérialisable
@@ -53,6 +58,7 @@ Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build*
 - Débogage de la recherche (liste des passages, sans appel LLM) : `uv run python -m agent_jdr.core.rules_index search "faire le plein" --brut -n 5`
 - Raccourci, mêmes options : `uv run search "faire le plein"` (entrée `[project.scripts]`).
 - Parler à un PNJ (appel à Claude, nécessite la clé) : `uv run parler orla-venn --lieu "Dock 7" --moment "Cycle de nuit" --pj Kael` ; en partie : `/fait <texte>` ajoute un fait à la scène, `/quitter` sort.
+- Toutes les commandes acceptent `--config autre.yaml`.
 - Clé API : `export ANTHROPIC_API_KEY=sk-ant-…` dans `~/.zshrc` (clé créée sur console.anthropic.com). Jamais dans le dépôt.
 - Tests couches 1–3 : `uv run pytest` (les tests de récupération reconstruisent l'index depuis les PDF dans un dossier temporaire ; ignorés si les PDF sont absents)
 - Évals couche 4 (LLM réel, payant) : `uv run pytest -m eval` (exclues par défaut ; ignorées sans identifiants)

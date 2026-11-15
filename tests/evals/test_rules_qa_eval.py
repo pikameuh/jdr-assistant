@@ -8,24 +8,29 @@ import os
 
 import pytest
 
-from agent_jdr.core.rules_index import DB_DEFAUT, RulesIndex
+from agent_jdr.core.config import charger_config
+from agent_jdr.core.rules_index import RulesIndex
 from agent_jdr.core.rules_qa import repondre
+
+# Les évals mesurent la configuration réelle (modèle, consignes) de config.yaml.
+CONFIG = charger_config()
 
 pytestmark = pytest.mark.eval
 
 
 @pytest.fixture(scope="module")
 def index():
-    if not DB_DEFAUT.is_file():
-        pytest.skip(f"Index absent ({DB_DEFAUT})")
+    db = CONFIG.fichiers.index_des_regles
+    if not db.is_file():
+        pytest.skip(f"Index absent ({db})")
     if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
         pytest.skip("Identifiants Anthropic absents (ANTHROPIC_API_KEY)")
-    with RulesIndex(DB_DEFAUT) as idx:
+    with RulesIndex(db) as idx:
         yield idx
 
 
 def test_grenade_cite_la_page_174(index):
-    reponse = repondre("expliques moi la dispersion d'une grenade", index)
+    reponse = repondre("expliques moi la dispersion d'une grenade", index, CONFIG.questions_de_regles)
     assert reponse.texte.strip()
     cites = [(s.passage.livre, s.passage.page) for s in reponse.sources]
     assert ("Manuel des joueurs", 174) in cites, f"p. 174 non citée ; sources : {cites}"

@@ -16,10 +16,10 @@ import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-RACINE = Path(__file__).resolve().parents[2]
-DB_DEFAUT = RACINE / "data" / "rules.db"
-DOSSIER_REGLES_DEFAUT = RACINE / "rules" / "MA - Manuel des joueurs 1.5"
+if TYPE_CHECKING:
+    from agent_jdr.core.config import ReglagesQuestions
 
 VERSION_SCHEMA = 1
 
@@ -128,7 +128,7 @@ def requete_fts(texte: str) -> str | None:
 class RulesIndex:
     """Accès en lecture seule à l'index des règles."""
 
-    def __init__(self, chemin_db: Path = DB_DEFAUT) -> None:
+    def __init__(self, chemin_db: Path) -> None:
         if not chemin_db.is_file():
             raise FileNotFoundError(
                 f"Index des règles absent : {chemin_db}. "
@@ -167,45 +167,62 @@ class RulesIndex:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Import local : la partie recherche reste sans dépendance hors bibliothèque standard.
+    from agent_jdr.core.config import CONFIG_DEFAUT, ConfigInvalide, charger_config
+
     parser = argparse.ArgumentParser(prog="rules_index", description=__doc__)
     sous = parser.add_subparsers(dest="commande", required=True)
     build = sous.add_parser("build", help="Construire l'index depuis les PDF")
-    build.add_argument("--regles", type=Path, default=DOSSIER_REGLES_DEFAUT)
-    build.add_argument("--db", type=Path, default=DB_DEFAUT)
+    build.add_argument("--regles", type=Path, help="remplace fichiers.dossier_des_pdf")
+    build.add_argument("--db", type=Path, help="remplace fichiers.index_des_regles")
+    build.add_argument("--config", type=Path, default=CONFIG_DEFAUT, help="fichier de configuration")
     cherche = sous.add_parser(
         "search", help="Répondre à une question de règles, avec sources (appel à Claude)"
     )
     cherche.add_argument("requete")
-    cherche.add_argument("-n", type=int, default=8, help="nombre de passages récupérés")
-    cherche.add_argument("--db", type=Path, default=DB_DEFAUT)
+    cherche.add_argument(
+        "-n", type=int, help="nombre de passages récupérés (remplace questions_de_regles.passages_envoyes)"
+    )
+    cherche.add_argument("--db", type=Path, help="remplace fichiers.index_des_regles")
+    cherche.add_argument("--config", type=Path, default=CONFIG_DEFAUT, help="fichier de configuration")
     cherche.add_argument(
         "--brut", action="store_true", help="lister les passages trouvés, sans appel au modèle"
     )
     args = parser.parse_args(argv)
 
+    try:
+        config = charger_config(args.config)
+    except ConfigInvalide as e:
+        print(f"Erreur de configuration : {e}", file=sys.stderr)
+        return 1
+    db = args.db or config.fichiers.index_des_regles
+
     if args.commande == "build":
         from agent_jdr.core.rules_extract import extraire_regles  # dépendance de build
 
-        n = construire_index(extraire_regles(args.regles), args.db)
-        print(f"{n} passages indexés dans {args.db}")
+        n = construire_index(extraire_regles(args.regles or config.fichiers.dossier_des_pdf), db)
+        print(f"{n} passages indexés dans {db}")
         return 0
 
-    with RulesIndex(args.db) as index:
+    limite = args.n or config.questions_de_regles.passages_envoyes
+    with RulesIndex(db) as index:
         if args.brut:
-            for r in index.rechercher(args.requete, args.n):
+            for r in index.rechercher(args.requete, limite):
                 print(f"[{r.score:.2f}] {r.passage.reference()}")
                 print("    " + r.passage.texte[:200].replace("\n", " ") + "…")
             return 0
-        return _repondre_cli(args.requete, index, args.n)
+        return _repondre_cli(args.requete, index, config.questions_de_regles, limite)
 
 
-def _repondre_cli(question: str, index: RulesIndex, limite: int) -> int:
+def _repondre_cli(
+    question: str, index: RulesIndex, reglages: ReglagesQuestions, limite: int
+) -> int:
     import anthropic
 
     from agent_jdr.core import rules_qa
 
     try:
-        reponse = rules_qa.repondre(question, index, limite=limite)
+        reponse = rules_qa.repondre(question, index, reglages, limite=limite)
     except (rules_qa.IdentifiantsAbsents, rules_qa.ReponseIncomplete) as e:
         print(f"Erreur : {e}", file=sys.stderr)
         return 1

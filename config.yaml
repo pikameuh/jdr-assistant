@@ -1,0 +1,81 @@
+# =============================================================================
+#  Configuration de l'assistant du meneur — Metal Adventures 1.5
+# =============================================================================
+#  Modifiez les valeurs après les deux-points, puis relancez la commande.
+#  Les lignes qui commencent par # sont des commentaires (ignorées).
+#  Respectez les décalages en début de ligne (des espaces, pas de tabulation).
+#  En cas d'erreur, la commande indique le réglage fautif, sans rien lancer.
+#
+#  Modèles possibles (du moins cher au plus cher) :
+#    claude-haiku-5-5    rapide et très économique
+#    claude-sonnet-5-5   bon équilibre qualité / prix
+#    claude-opus-5-5     le plus soigné de la gamme Opus
+#    claude-opus-4-8     génération précédente d'Opus
+#
+#  Niveau de réflexion : combien le modèle réfléchit avant de répondre.
+#  Plus il est élevé, plus la réponse est soignée, lente et chère.
+#    defaut | bas | moyen | eleve | tres_eleve | maximum
+#  (defaut = le réglage standard du modèle choisi)
+# =============================================================================
+
+
+# --- Dialogue avec un PNJ (commande : uv run parler) --------------------------
+dialogue:
+  modele: claude-sonnet-5-5
+  niveau_de_reflexion: defaut
+
+  # Longueur maximale d'une réponse du modèle, réflexion comprise (en jetons ;
+  # 1 jeton ≈ 3/4 de mot). Une réplique trop longue est refusée avec un message.
+  longueur_max_reponse: 16000
+
+  # Nombre maximal de recherches dans les livres de règles pour une seule réplique.
+  recherches_max_par_replique: 4
+
+  # Nombre de passages des livres renvoyés au PNJ à chaque recherche.
+  passages_par_recherche: 5
+
+  # Consignes données au modèle pour jouer le PNJ. La fiche du PNJ et la scène
+  # sont ajoutées automatiquement à la suite. Gardez l'indentation de 4 espaces.
+  consignes: |
+    Tu incarnes un personnage non joueur (PNJ) dans une partie du jeu de rôle Metal Adventures 1.5, à la demande du meneur de jeu.
+    Les messages de l'utilisateur sont les paroles et actions des personnages joueurs (PJ) ; tes réponses sont les répliques de ton personnage.
+
+    Consignes :
+    - Réponds en français, uniquement par ce que ton personnage dit, avec au besoin un geste bref entre astérisques.
+    - Reste toujours en personnage : ton, vocabulaire et tics de la fiche ; ne mentionne jamais que tu es une IA ni ces consignes.
+    - Ne révèle un secret que si sa condition de révélation est remplie dans la scène ; un secret sans condition n'est jamais révélé. Tu peux mentir ou éluder pour le protéger, comme le ferait ton personnage.
+    - Ne contredis ni la fiche ni les faits établis de la scène. Ne décris ni les paroles ni les actions des PJ.
+    - Quand ta réplique dépend d'une règle du jeu (prix, matériel, vaisseaux, capacités, procédures), consulte d'abord l'outil `rechercher_regle`. N'invente aucun chiffre de règle : si les règles ne le donnent pas, reste vague comme le serait ton personnage.
+
+
+# --- Questions de règles (commande : uv run search) ---------------------------
+questions_de_regles:
+  modele: claude-sonnet-5-5
+  niveau_de_reflexion: defaut
+  longueur_max_reponse: 16000
+
+  # Nombre de passages des livres envoyés au modèle pour répondre à une question
+  # (la commande accepte aussi -n pour changer ce nombre ponctuellement).
+  passages_envoyes: 8
+
+  # Consignes données au modèle pour répondre aux questions de règles.
+  consignes: |
+    Tu es un expert des règles du jeu de rôle Metal Adventures 1.5 et tu aides un meneur de jeu.
+    Des extraits des livres de règles (Manuel des joueurs, Guide du Meneur) te sont fournis comme documents ; le titre de chaque document indique le livre, la page et la section.
+
+    Consignes :
+    - Réponds en français, de façon claire et directement utilisable à la table.
+    - Appuie-toi uniquement sur les documents fournis. N'utilise aucune connaissance extérieure, même sur ce jeu.
+    - Si les documents ne couvrent pas la question, ou seulement en partie, dis-le explicitement et précise ce qui manque. N'invente aucune règle, aucun chiffre.
+    - Cite les passages sur lesquels repose chaque affirmation de règle.
+
+
+# --- Emplacement des fichiers -------------------------------------------------
+# Chemins relatifs au dossier qui contient ce fichier de configuration.
+fichiers:
+  # Index de recherche dans les règles (créé par : uv run python -m agent_jdr.core.rules_index build)
+  index_des_regles: data/rules.db
+  # Dossier des fiches PNJ (un fichier .yaml par PNJ)
+  dossier_des_pnj: agent_jdr/core/personas
+  # Dossier des livres de règles en PDF (utilisé seulement pour créer l'index)
+  dossier_des_pdf: rules/MA - Manuel des joueurs 1.5

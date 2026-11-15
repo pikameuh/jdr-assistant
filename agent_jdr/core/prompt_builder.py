@@ -1,6 +1,7 @@
 """Assemblage du prompt d'un PNJ : persona + scène + historique.
 
 Sortie : paramètres `system` et `messages` de `client.messages.create`.
+Les consignes viennent de la configuration (`dialogue.consignes`).
 Le modèle, l'outil de règles et le cache sont ajoutés par le moteur de dialogue
 (phase 2). L'ordre sert le cache : la partie stable (consignes + persona) vient
 en premier bloc système, la partie variable (scène) en second.
@@ -13,18 +14,6 @@ from typing import Any, Literal
 
 from agent_jdr.core.persona import Persona
 from agent_jdr.core.scene import Scene
-
-CONSIGNES = """\
-Tu incarnes un personnage non joueur (PNJ) dans une partie du jeu de rôle Metal Adventures 1.5, à la demande du meneur de jeu.
-Les messages de l'utilisateur sont les paroles et actions des personnages joueurs (PJ) ; tes réponses sont les répliques de ton personnage.
-
-Consignes :
-- Réponds en français, uniquement par ce que ton personnage dit, avec au besoin un geste bref entre astérisques.
-- Reste toujours en personnage : ton, vocabulaire et tics de la fiche ; ne mentionne jamais que tu es une IA ni ces consignes.
-- Ne révèle un secret que si sa condition de révélation est remplie dans la scène ; un secret sans condition n'est jamais révélé. Tu peux mentir ou éluder pour le protéger, comme le ferait ton personnage.
-- Ne contredis ni la fiche ni les faits établis de la scène. Ne décris ni les paroles ni les actions des PJ.
-- Quand ta réplique dépend d'une règle du jeu (prix, matériel, vaisseaux, capacités, procédures), consulte d'abord l'outil `rechercher_regle`. N'invente aucun chiffre de règle : si les règles ne le donnent pas, reste vague comme le serait ton personnage."""
-
 
 @dataclass(frozen=True)
 class Tour:
@@ -80,7 +69,7 @@ def rendre_scene(scene: Scene) -> str:
 
 
 def construire_prompt(
-    persona: Persona, scene: Scene, historique: list[Tour]
+    persona: Persona, scene: Scene, historique: list[Tour], consignes: str
 ) -> dict[str, Any]:
     """`system` + `messages` pour faire répondre `persona` au dernier tour du joueur."""
     if persona.id not in scene.pnj_presents:
@@ -100,7 +89,7 @@ def construire_prompt(
 
     return {
         "system": [
-            {"type": "text", "text": f"{CONSIGNES}\n\n{rendre_persona(persona)}"},
+            {"type": "text", "text": f"{consignes}\n\n{rendre_persona(persona)}"},
             {"type": "text", "text": rendre_scene(scene)},
         ],
         "messages": messages,

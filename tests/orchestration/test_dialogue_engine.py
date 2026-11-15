@@ -8,20 +8,20 @@ import pytest
 from anthropic.types import Message, TextBlock, ThinkingBlock, ToolUseBlock, Usage
 
 from agent_jdr.core import dialogue_engine
-from agent_jdr.core.dialogue_engine import (
-    AUCUN_PASSAGE,
-    MAX_TOURS_OUTILS,
-    OUTIL_REGLES,
-    MoteurDialogue,
-)
-from agent_jdr.core.persona import DOSSIER_PERSONAS, charger_persona
+from agent_jdr.core.config import charger_config
+from agent_jdr.core.dialogue_engine import AUCUN_PASSAGE, OUTIL_REGLES, MoteurDialogue
+from agent_jdr.core.persona import charger_persona
 from agent_jdr.core.prompt_builder import Tour
 from agent_jdr.core.rules_index import Passage, RulesIndex, construire_index
 from agent_jdr.core.rules_qa import IdentifiantsAbsents, ReponseIncomplete
 from agent_jdr.core.scene import Scene
 from agent_jdr.interfaces import cli
+from tests.reglages_test import CONFIG_TEST, CONSIGNES_DIALOGUE
 
-ORLA = charger_persona(DOSSIER_PERSONAS / "orla-venn.yaml")
+REGLAGES = CONFIG_TEST.dialogue
+MAX_TOURS_OUTILS = REGLAGES.recherches_max_par_replique
+
+ORLA = charger_persona(charger_config().fichiers.dossier_des_pnj / "orla-venn.yaml")
 SCENE = Scene(lieu="Dock 7", moment="Cycle de nuit", pnj_presents=("orla-venn",), pj_presents=("Kael",))
 PLEIN = Passage("Manuel des joueurs", 196, 196, "Voyage", "Faire le plein", "", "Une pile énergétique coûte cher.")
 
@@ -67,7 +67,7 @@ def _message(blocs, stop_reason):
 def moteur(index, *reponses):
     client = MagicMock()
     client.messages.create.side_effect = list(reponses)
-    return MoteurDialogue(ORLA, SCENE, index, client=client), client
+    return MoteurDialogue(ORLA, SCENE, index, REGLAGES, client=client), client
 
 
 def appels(client):
@@ -84,12 +84,15 @@ def test_replique_simple_et_parametres(index):
     assert replique.texte == "Crédits ou promesses, capitaine ?"
     assert replique.regles_consultees == ()
     (params,) = appels(client)
-    assert params["model"] == "claude-opus-4-8"
+    assert params["model"] == "claude-test-dialogue"
+    assert params["max_tokens"] == 1000
     assert params["thinking"] == {"type": "adaptive"}
+    assert "output_config" not in params  # niveau de réflexion « defaut »
     assert params["tools"] == [OUTIL_REGLES]
     assert params["cache_control"] == {"type": "ephemeral"}
     assert params["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert "cache_control" not in params["system"][1]
+    assert params["system"][0]["text"].startswith(CONSIGNES_DIALOGUE + "\n\n")
     assert "Orla Venn" in params["system"][0]["text"]
     assert params["messages"] == [{"role": "user", "content": "[Kael] Une pile ?"}]
     assert m.historique == [
@@ -293,3 +296,45 @@ def test_le_coeur_ne_depend_pas_des_interfaces():
     racine = pathlib.Path(dialogue_engine.__file__).parent
     for fichier in racine.rglob("*.py"):
         assert "agent_jdr.interfaces" not in fichier.read_text(encoding="utf-8"), fichier
+
+
+# --- Réglages de la configuration ----------------------------------------------------
+
+
+def test_niveau_de_reflexion_transmis(index):
+    client = MagicMock()
+    client.messages.create.side_effect = [texte("ok")]
+    reglages = REGLAGES.model_copy(update={"niveau_de_reflexion": "eleve"})
+    MoteurDialogue(ORLA, SCENE, index, reglages, client=client).repondre("?")
+    assert appels(client)[0]["output_config"] == {"effort": "high"}
+
+
+def test_passages_par_recherche_transmis():
+    faux_index = MagicMock()
+    faux_index.rechercher.return_value = []
+    m = MoteurDialogue(ORLA, SCENE, faux_index, REGLAGES, client=MagicMock())
+    m.client.messages.create.side_effect = [outil({"requete": "pile"}), texte("ok")]
+    m.repondre("?")
+    faux_index.rechercher.assert_called_once_with("pile", REGLAGES.passages_par_recherche)
+
+
+def test_cli_affiche_le_modele_de_la_config(monkeypatch, chemin_db, capsys):
+    lancer_cli(monkeypatch, chemin_db, [])
+    modele = charger_config().dialogue.modele
+    assert f"(modèle : {modele})" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("commande", ["parler", "search"])
+def test_cli_config_invalide(tmp_path, capsys, commande):
+    from agent_jdr.core import rules_index
+
+    mauvaise = tmp_path / "config.yaml"
+    mauvaise.write_text("dialogue: {}\n", encoding="utf-8")
+    if commande == "parler":
+        code = cli.main(["orla-venn", "--lieu", "a", "--moment", "b", "--pj", "K", "--config", str(mauvaise)])
+    else:
+        code = rules_index.main(["search", "q", "--config", str(mauvaise)])
+    assert code == 1
+    erreur = capsys.readouterr().err
+    assert "configuration" in erreur and "dialogue > modele" in erreur
+    assert "Traceback" not in erreur

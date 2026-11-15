@@ -17,21 +17,8 @@ from typing import Any
 
 import anthropic
 
+from agent_jdr.core.config import ReglagesQuestions
 from agent_jdr.core.rules_index import Passage, RulesIndex
-
-MODELE = "claude-opus-4-8"
-MAX_TOKENS = 16000
-LIMITE_DEFAUT = 8
-
-CONSIGNE_SYSTEME = """\
-Tu es un expert des règles du jeu de rôle Metal Adventures 1.5 et tu aides un meneur de jeu.
-Des extraits des livres de règles (Manuel des joueurs, Guide du Meneur) te sont fournis comme documents ; le titre de chaque document indique le livre, la page et la section.
-
-Consignes :
-- Réponds en français, de façon claire et directement utilisable à la table.
-- Appuie-toi uniquement sur les documents fournis. N'utilise aucune connaissance extérieure, même sur ce jeu.
-- Si les documents ne couvrent pas la question, ou seulement en partie, dis-le explicitement et précise ce qui manque. N'invente aucune règle, aucun chiffre.
-- Cite les passages sur lesquels repose chaque affirmation de règle."""
 
 MESSAGE_AUCUN_PASSAGE = "Aucun passage des règles ne correspond à cette question."
 
@@ -74,7 +61,9 @@ class Reponse:
 # --- Requête ----------------------------------------------------------------------
 
 
-def construire_requete(question: str, passages: list[Passage]) -> dict[str, Any]:
+def construire_requete(
+    question: str, passages: list[Passage], reglages: ReglagesQuestions
+) -> dict[str, Any]:
     """Paramètres de `client.messages.create` : un document par passage, puis la question."""
     documents = [
         {
@@ -86,10 +75,8 @@ def construire_requete(question: str, passages: list[Passage]) -> dict[str, Any]
         for p in passages
     ]
     return {
-        "model": MODELE,
-        "max_tokens": MAX_TOKENS,
-        "thinking": {"type": "adaptive"},
-        "system": CONSIGNE_SYSTEME,
+        **reglages.parametres_modele(),
+        "system": reglages.consignes,
         "messages": [
             {"role": "user", "content": [*documents, {"type": "text", "text": question}]}
         ],
@@ -138,18 +125,20 @@ def lire_reponse(message: Any, passages: list[Passage]) -> Reponse:
 def repondre(
     question: str,
     index: RulesIndex,
+    reglages: ReglagesQuestions,
     client: anthropic.Anthropic | None = None,
-    limite: int = LIMITE_DEFAUT,
+    limite: int | None = None,
 ) -> Reponse:
     """Recherche les passages pertinents puis fait rédiger la réponse par le modèle.
 
-    Sans passage trouvé, aucun appel au modèle n'est fait.
+    Sans passage trouvé, aucun appel au modèle n'est fait. `limite` remplace
+    ponctuellement `reglages.passages_envoyes`.
     """
-    passages = [r.passage for r in index.rechercher(question, limite)]
+    passages = [r.passage for r in index.rechercher(question, limite or reglages.passages_envoyes)]
     if not passages:
         return Reponse((Segment(MESSAGE_AUCUN_PASSAGE),), (), ())
 
-    message = appeler_api(client or anthropic.Anthropic(), construire_requete(question, passages))
+    message = appeler_api(client or anthropic.Anthropic(), construire_requete(question, passages, reglages))
     return lire_reponse(message, passages)
 
 

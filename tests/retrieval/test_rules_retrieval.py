@@ -8,7 +8,8 @@ import re
 
 import pytest
 
-from agent_jdr.core.rules_index import DOSSIER_REGLES_DEFAUT, RulesIndex, construire_index
+from agent_jdr.core.config import charger_config
+from agent_jdr.core.rules_index import RulesIndex, construire_index
 
 pytestmark = pytest.mark.retrieval
 
@@ -18,11 +19,12 @@ TOP = 3
 
 @pytest.fixture(scope="module")
 def passages():
-    if not DOSSIER_REGLES_DEFAUT.is_dir():
-        pytest.skip(f"PDF de règles absents ({DOSSIER_REGLES_DEFAUT})")
+    dossier = charger_config().fichiers.dossier_des_pdf
+    if not dossier.is_dir():
+        pytest.skip(f"PDF de règles absents ({dossier})")
     from agent_jdr.core.rules_extract import extraire_regles
 
-    return extraire_regles(DOSSIER_REGLES_DEFAUT)
+    return extraire_regles(dossier)
 
 
 @pytest.fixture(scope="module")

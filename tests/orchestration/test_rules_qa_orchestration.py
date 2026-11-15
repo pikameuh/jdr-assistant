@@ -7,6 +7,9 @@ import pytest
 
 from agent_jdr.core import rules_index, rules_qa
 from agent_jdr.core.rules_index import Passage, RulesIndex, construire_index
+from tests.reglages_test import CONFIG_TEST
+
+REGLAGES = CONFIG_TEST.questions_de_regles
 
 
 def passage(texte, section, page):
@@ -40,14 +43,14 @@ def client_mock(message):
 
 def test_passages_recuperes_envoyes_au_modele(index, message_factice):
     client = client_mock(message_factice(["ok"]))
-    reponse = rules_qa.repondre("dispersion d'une grenade", index, client=client)
+    reponse = rules_qa.repondre("dispersion d'une grenade", index, REGLAGES, client=client)
 
     client.messages.create.assert_called_once()
     kwargs = client.messages.create.call_args.kwargs
     documents = [b for b in kwargs["messages"][0]["content"] if b["type"] == "document"]
     assert [d["title"] for d in documents] == [p.reference() for p in reponse.passages_fournis]
     assert documents[0]["title"] == "Manuel des joueurs, p. 174 — Dispersion"
-    assert kwargs["model"] == "claude-opus-4-8"
+    assert kwargs["model"] == "claude-test-regles"
 
 
 def test_citation_reliee_au_bon_passage(index, message_factice):
@@ -57,14 +60,14 @@ def test_citation_reliee_au_bon_passage(index, message_factice):
     assert len(envoyes) == 2
     client = client_mock(message_factice([("Ça consomme.", [(1, envoyes[1].texte)])]))
 
-    reponse = rules_qa.repondre(question, index, client=client)
+    reponse = rules_qa.repondre(question, index, REGLAGES, client=client)
     assert [s.passage for s in reponse.sources] == [envoyes[1]]
     assert reponse.sources[0].extraits == (envoyes[1].texte,)
 
 
 def test_aucun_passage_pas_d_appel(index):
     client = MagicMock()
-    reponse = rules_qa.repondre("xylophone", index, client=client)
+    reponse = rules_qa.repondre("xylophone", index, REGLAGES, client=client)
     client.messages.create.assert_not_called()
     assert reponse.texte == rules_qa.MESSAGE_AUCUN_PASSAGE
     assert reponse.sources == ()
@@ -72,7 +75,7 @@ def test_aucun_passage_pas_d_appel(index):
 
 def test_limite_transmise_a_la_recherche(index, message_factice):
     client = client_mock(message_factice(["ok"]))
-    reponse = rules_qa.repondre("grenade dispersion carburant", index, client=client, limite=1)
+    reponse = rules_qa.repondre("grenade dispersion carburant", index, REGLAGES, client=client, limite=1)
     assert len(reponse.passages_fournis) == 1
 
 
@@ -82,14 +85,14 @@ def test_identifiants_absents_message_clair(index):
         "Could not resolve authentication method. Expected one of api_key, auth_token, ..."
     )
     with pytest.raises(rules_qa.IdentifiantsAbsents, match="ANTHROPIC_API_KEY"):
-        rules_qa.repondre("grenade", index, client=client)
+        rules_qa.repondre("grenade", index, REGLAGES, client=client)
 
 
 def test_autre_typeerror_non_masquee(index):
     client = MagicMock()
     client.messages.create.side_effect = TypeError("autre chose")
     with pytest.raises(TypeError, match="autre chose"):
-        rules_qa.repondre("grenade", index, client=client)
+        rules_qa.repondre("grenade", index, REGLAGES, client=client)
 
 
 # --- CLI --------------------------------------------------------------------------

@@ -12,9 +12,10 @@ from pathlib import Path
 
 import anthropic
 
+from agent_jdr.core.config import CONFIG_DEFAUT, ConfigInvalide, charger_config
 from agent_jdr.core.dialogue_engine import MoteurDialogue
-from agent_jdr.core.persona import DOSSIER_PERSONAS, PersonaInvalide, charger_personas
-from agent_jdr.core.rules_index import DB_DEFAUT, RulesIndex
+from agent_jdr.core.persona import PersonaInvalide, charger_personas
+from agent_jdr.core.rules_index import RulesIndex
 from agent_jdr.core.rules_qa import IdentifiantsAbsents, ReponseIncomplete
 from agent_jdr.core.scene import Scene
 
@@ -31,12 +32,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pj", required=True, help="nom du personnage joueur qui parle")
     parser.add_argument("--ambiance", default="")
     parser.add_argument("--enjeux", default="")
-    parser.add_argument("--personas", type=Path, default=DOSSIER_PERSONAS)
-    parser.add_argument("--db", type=Path, default=DB_DEFAUT)
+    parser.add_argument("--config", type=Path, default=CONFIG_DEFAUT, help="fichier de configuration")
+    parser.add_argument("--personas", type=Path, help="remplace fichiers.dossier_des_pnj")
+    parser.add_argument("--db", type=Path, help="remplace fichiers.index_des_regles")
     args = parser.parse_args(argv)
 
     try:
-        personas = charger_personas(args.personas)
+        config = charger_config(args.config)
+    except ConfigInvalide as e:
+        _erreur(f"configuration : {e}")
+        return 1
+    try:
+        personas = charger_personas(args.personas or config.fichiers.dossier_des_pnj)
     except PersonaInvalide as e:
         _erreur(str(e))
         return 1
@@ -53,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         enjeux=args.enjeux,
     )
     try:
-        index = RulesIndex(args.db)
+        index = RulesIndex(args.db or config.fichiers.index_des_regles)
     except FileNotFoundError as e:
         _erreur(str(e))
         return 1
@@ -64,8 +71,9 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     with index:
-        moteur = MoteurDialogue(persona, scene, index)
-        print(f"Vous parlez à {persona.nom}. /fait <texte> : ajouter un fait ; /quitter : sortir.")
+        moteur = MoteurDialogue(persona, scene, index, config.dialogue)
+        print(f"Vous parlez à {persona.nom} (modèle : {config.dialogue.modele}).")
+        print("/fait <texte> : ajouter un fait à la scène ; /quitter : sortir.")
         while True:
             try:
                 ligne = input(f"{args.pj} > ").strip()
