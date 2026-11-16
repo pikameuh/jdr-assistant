@@ -76,5 +76,10 @@ Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build*
 - Évals couche 4 (LLM réel, payant) : `uv run pytest -m eval` (exclues par défaut ; ignorées sans identifiants)
 - Lint : _non configuré_
 
+## Skills et collaboration
+Skills du projet dans `.claude/skills/` (versionnés) : `livrer-un-changement` (garde-fou de toute modification), `diagnostic`, `creer-pnj-depuis-description`, `preparer-la-seance`, `apres-la-partie`, `tester-un-pnj` (évals payantes), `synchroniser` (git), `maj-manuel`. Un skill qui réagit à une phrase de l'utilisateur a une section `## Phrases de l'utilisateur` ; ces phrases sont recopiées mot pour mot dans `MANUEL.md`, section 13 (vérifié par `tests/unit/test_skills_manuel.py`).
+
+Collaboration : dépôt distant `origin` (GitHub ou Gitea privé), branche `master` tenue par le mainteneur. Rôle de la personne dans `git config --local jdr.role` (`mainteneur` | `contributeur`) ; un contributeur travaille sur une branche personnelle unique (`git config --local jdr.branche`, `travail/<prénom>`), gérée par Claude sans que cette personne ait à s'en occuper, et n'envoie (`push`) qu'en cas de blocage ou de proposition. Hors git : `secrets.yaml`, PDF de `rules/`, `data/rules.db`, `data/sessions/`, `data/historique/`. `.claude/settings.json` autorise les commandes sans risque et interdit de lire `secrets.yaml`.
+
 ## Sources
 Règles dans `rules/MA - Manuel des joueurs 1.5/` : **Guide du Meneur** (258 p.) + **Manuel des joueurs** (290 p.), FR. Gros binaires gardés hors git (voir `.gitignore`).

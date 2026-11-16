@@ -23,9 +23,10 @@ Vérifier le manuel si la modification touche l'un de ces points (section du man
 | Schéma des fiches PNJ (`core/persona.py`, `core/personas/`, `modele_pnj.yaml`) | 10 (et 6 pour le formulaire) |
 | Modèle par défaut, nombre d'appels, cache, tarifs | 11 |
 | Message d'erreur ajouté, modifié ou corrigé ; anomalie connue résolue | 12 |
+| Skill de `.claude/skills/` ajouté, retiré ou renommé, ou phrases de sa section « Phrases de l'utilisateur » modifiées | 13 (tableau « Les phrases prévues » : mêmes phrases, mot pour mot ; le test `tests/unit/test_skills_manuel.py` le vérifie) |
 | Toute section ajoutée ou retirée | Sommaire |
 
-Ne demandent pas de mise à jour : refactorisation interne sans effet visible, tests, `PROGRESS.md`, `CLAUDE.md`.
+Ne demandent pas de mise à jour : refactorisation interne sans effet visible, tests, `PROGRESS.md`, `CLAUDE.md`, et un skill sans section « Phrases de l'utilisateur » (comme celui-ci), qui ne se déclenche pas sur une phrase de l'utilisateur.
 
 En cas de doute, lire la section concernée et comparer avec le nouveau comportement.
 

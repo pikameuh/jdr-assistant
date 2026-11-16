@@ -16,6 +16,7 @@ Assistant du meneur pour **Metal Adventures 1.5**. Ce manuel s'adresse à une pe
 10. [Créer un PNJ](#10-créer-un-pnj)
 11. [Combien ça coûte](#11-combien-ça-coûte)
 12. [En cas de problème](#12-en-cas-de-problème)
+13. [Se faire aider par Claude Code](#13-se-faire-aider-par-claude-code)
 
 ---
 
@@ -35,7 +36,7 @@ Les réponses sont rédigées par un modèle d'intelligence artificielle interro
 |---|---|
 | Un ordinateur sous **Linux** ou **macOS** | L'assistant n'a pas été essayé sous Windows. |
 | Un **terminal** | La fenêtre où l'on tape des commandes. Sous macOS : application « Terminal ». Sous Linux : « Terminal » dans le menu des applications. |
-| Le **dossier du projet** | Fourni par votre équipe. Dans ce manuel, on suppose qu'il s'appelle `cosmos-demo`. |
+| Le **dossier du projet** | Fourni par votre équipe, ou récupéré avec git ([section 13](#13-se-faire-aider-par-claude-code)). Dans ce manuel, on suppose qu'il s'appelle `cosmos-demo`. |
 | Les **deux livres PDF** de Metal Adventures 1.5 | Manuel des joueurs et Guide du Meneur, achetés légalement. Ils ne sont pas fournis avec le projet. |
 | Un **compte Anthropic** et/ou un **compte OpenAI** avec des crédits | Selon le ou les fournisseurs choisis, pour obtenir une clé (voir [section 4](#4-les-clés-api-une-seule-fois)). Par défaut, l'assistant utilise Anthropic pour tout. |
 | Une connexion **Internet** | Pour joindre le modèle. |
@@ -601,3 +602,50 @@ La valeur est hors des limites indiquées dans les tableaux de la [section 9](#9
 ```sh
 git checkout config.yaml
 ```
+
+## 13. Se faire aider par Claude Code
+
+**Claude Code** est un assistant qui travaille dans le terminal, à l'intérieur du dossier du projet. Vous lui parlez en français, comme à une personne : il peut créer vos PNJ, préparer vos séances, réparer une erreur, modifier l'assistant ou récupérer les nouveautés du projet. Vous n'avez besoin ni de programmer ni de connaître git.
+
+### Installer et lancer Claude Code
+
+Installez Claude Code en suivant les instructions du site d'Anthropic (<https://claude.com/claude-code>). Il faut aussi **git** : vérifiez avec `git --version` (une ligne comme `git version 2.43.0` doit s'afficher).
+
+**La première fois**, récupérez le projet avec l'adresse que vous a donnée le mainteneur (la personne qui tient le projet), puis lancez Claude Code dans le dossier :
+
+```sh
+git clone <adresse donnée par le mainteneur> cosmos-demo
+cd cosmos-demo
+claude
+```
+
+Dites alors « Installe le projet » : Claude vous demande qui vous êtes, installe l'assistant, puis vous guide pour les clés ([section 4](#4-les-clés-api-une-seule-fois)) et les livres ([section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois)). Les livres PDF ne sont jamais partagés : utilisez vos propres exemplaires.
+
+**Les fois suivantes**, placez-vous dans le dossier du projet et tapez `claude`.
+
+### Les phrases prévues
+
+Certaines phrases déclenchent une marche à suivre écrite pour ce projet (un « skill »). Les phrases ci-dessous sont des exemples : une formulation proche marche aussi.
+
+| Vous voulez… | Dites par exemple | Skill |
+|---|---|---|
+| Créer un PNJ à partir d'une description ou d'un scénario, ou améliorer une fiche | « Crée-moi un PNJ … » ; « Fais une fiche pour ce personnage : … » ; « Améliore la fiche de … » | `creer-pnj-depuis-description` |
+| Préparer une séance : PNJ manquants, règles utiles, vérification que tout est prêt | « Prépare la séance » ; « Je joue samedi, voici mon scénario » ; « Est-ce que tout est prêt pour la partie ? » | `preparer-la-seance` |
+| Faire le bilan d'une séance et mettre les fiches PNJ à jour (secrets révélés, attitude) | « On a fini la séance » ; « Fais le bilan de la partie » ; « Mets à jour les PNJ après la partie » | `apres-la-partie` |
+| Vérifier qu'un PNJ tient son rôle, avec le vrai modèle (payant) | « Teste ce PNJ » ; « Est-ce que … tient son rôle ? » | `tester-un-pnj` |
+| Réparer ce qui ne marche pas | « Ça ne marche plus » ; « J'ai une erreur » ; « Vérifie que tout est prêt » | `diagnostic` |
+| Modifier l'assistant lui-même | « Ajoute … » ; « Change … » ; « Corrige … » ; « Je voudrais que l'assistant … » ; « Annule le dernier changement » | `livrer-un-changement` |
+| Installer le projet, récupérer les nouveautés, demander de l'aide au mainteneur, proposer vos modifications | « Installe le projet » ; « Récupère les nouveautés » ; « J'ai un problème bloquant » ; « Propose mes changements » ; « Récupère le travail de mon ami » (pour le mainteneur) | `synchroniser` |
+
+Cette liste est vérifiée automatiquement : quand une phrase prévue est ajoutée ou changée, ce tableau doit l'être aussi, sinon les tests du projet échouent.
+
+### Ce que Claude fait toujours pour vous
+
+- **Il vous demande avant de dépenser** : tout ce qui interroge un modèle (réplique de PNJ, question de règles, test d'un PNJ) attend votre accord.
+- **Il vous demande avant d'envoyer** quoi que ce soit sur Internet (votre travail vers le dépôt partagé).
+- **Il ne lit ni n'affiche vos clés API.**
+- **Il garde votre travail à part** : vos modifications restent dans votre propre version du projet. Elles ne partent chez le mainteneur que si vous dites « J'ai un problème bloquant » ou « Propose mes changements ». Quand vous dites « Récupère les nouveautés », il ajoute le travail du mainteneur au vôtre, sans rien perdre.
+- **Il teste avant d'enregistrer** une modification de l'assistant, et met ce manuel à jour.
+- **Tout s'annule** : dites « Annule le dernier changement ».
+
+**Ce qui n'est jamais partagé** : vos clés (`secrets.yaml`), les livres PDF et leur index, vos sessions de dialogue et votre historique de questions de règles. Les fiches PNJ, `config.yaml` et `modeles.yaml` sont partagés avec le mainteneur quand vous envoyez votre travail : **les secrets de vos PNJ lui seront visibles**.
