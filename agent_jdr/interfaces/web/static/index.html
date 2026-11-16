@@ -17,6 +17,7 @@
     <nav class="onglets" role="tablist">
       <button role="tab" class="onglet actif" data-vue="regles" aria-selected="true">Règles</button>
       <button role="tab" class="onglet" data-vue="pnj" aria-selected="false">PNJ</button>
+      <button role="tab" class="onglet" data-vue="livres" aria-selected="false">Livres</button>
     </nav>
     <div class="actions-entete">
       <button class="bouton-icone" id="btn-aide" title="Aide : manuel d'utilisation" aria-label="Aide">?</button>
@@ -26,6 +27,13 @@
 
   <!-- ================= Règles ================= -->
   <main id="vue-regles" class="vue">
+    <aside class="barre-sessions barre-historique">
+      <h2 class="titre-liste premier">Historique des recherches</h2>
+      <input id="filtre-historique" type="search" placeholder="Rechercher (question, réponse, source)" aria-label="Rechercher dans l'historique">
+      <ul id="liste-historique" class="liste-sessions liste-historique"></ul>
+      <button id="btn-vider-historique" class="danger large espace-haut" title="Supprime toutes les recherches de l'historique">Tout effacer</button>
+    </aside>
+    <div class="zone-regles">
     <section class="carte formulaire-question">
       <form id="form-regles">
         <label for="question" class="label-principal">Votre question de règles</label>
@@ -42,6 +50,29 @@
       </form>
     </section>
     <section id="resultats-regles" aria-live="polite"></section>
+    </div>
+  </main>
+
+  <!-- ================= Livres ================= -->
+  <main id="vue-livres" class="vue cache">
+    <section class="carte">
+      <h2 class="titre-section">Livres de règles</h2>
+      <p class="petit">Cochez les livres dans lesquels cherchent les questions de règles et les PNJ. Le choix est enregistré tout de suite dans config.yaml (réglage « regles &gt; livres_utilises ») et reste en place au prochain lancement.</p>
+      <div id="livres-alerte" class="alerte cache"></div>
+      <table class="table-livres">
+        <thead><tr><th>Utiliser</th><th>Livre</th><th>Fichier</th><th>Passages indexés</th><th>Taille</th></tr></thead>
+        <tbody id="liste-livres"></tbody>
+      </table>
+      <p id="dossier-livres" class="petit"></p>
+      <div class="ligne-actions">
+        <input type="file" id="fichier-pdf" accept="application/pdf,.pdf" class="cache">
+        <button id="btn-ajouter-pdf" class="primaire">+ Ajouter un PDF</button>
+        <button id="btn-reindexer" class="secondaire" title="Relit tous les PDF du dossier (utile après y avoir copié un fichier à la main)">Reconstruire l'index</button>
+        <span class="espace"></span>
+      </div>
+      <p id="livres-progression" class="chargement cache"></p>
+      <p id="livres-message" class="petit message-livres"></p>
+    </section>
   </main>
 
   <!-- ================= PNJ ================= -->
@@ -64,6 +95,7 @@
           </div>
           <div class="actions-session">
             <button id="btn-scene" class="secondaire" aria-expanded="false">Scène & faits</button>
+            <button id="btn-modifier-pnj" class="secondaire" title="Modifier la fiche de ce PNJ">Modifier le PNJ</button>
             <button id="btn-effacer-historique" class="secondaire" title="Efface les échanges ; garde le PNJ, le PJ, la scène et les faits">Effacer l'historique</button>
             <button id="btn-supprimer-session" class="danger" title="Supprime la session entière">Supprimer</button>
           </div>
@@ -128,7 +160,7 @@
       </div>
       <div class="champs">
         <label>PNJ <select id="ns-persona" required></select></label>
-        <p class="petit lien-pnj">Le PNJ n'existe pas encore ? <button type="button" id="btn-ns-creer-pnj" class="lien">Créer un PNJ</button></p>
+        <p class="petit lien-pnj"><button type="button" id="btn-ns-creer-pnj" class="lien">Créer un PNJ</button> · <button type="button" id="btn-ns-modifier-pnj" class="lien">Modifier le PNJ choisi</button></p>
         <label>Nom du PJ qui parle <input id="ns-pj" required placeholder="Kael"></label>
         <label>Lieu <input id="ns-lieu" required placeholder="Dock 7"></label>
         <label>Moment <input id="ns-moment" required placeholder="Cycle de nuit"></label>
@@ -146,7 +178,7 @@
   <dialog id="dlg-pnj" class="fenetre large">
     <form id="form-pnj" novalidate>
       <div class="entete-fenetre">
-        <h2>Nouveau PNJ</h2>
+        <h2 id="pnj-titre">Nouveau PNJ</h2>
         <button type="button" class="bouton-icone fermer" aria-label="Fermer">✕</button>
       </div>
       <div class="ligne-actions depart-pnj">
@@ -155,6 +187,7 @@
         </label>
         <span class="petit">Remplacez chaque texte pré-rempli : les champs encore identiques au point de départ sont surlignés.</span>
       </div>
+      <p id="pnj-note-modif" class="petit cache">L'identifiant ne change pas (les sessions y font référence). Le fichier de la fiche est réécrit : les commentaires qu'il contenait ne sont pas conservés.</p>
       <div id="pnj-erreur" class="alerte cache"></div>
       <div class="corps-pnj">
         <fieldset>
@@ -193,7 +226,7 @@
       <div class="ligne-actions">
         <span class="espace"></span>
         <button type="button" class="secondaire fermer">Annuler</button>
-        <button type="submit" class="primaire">Créer le PNJ</button>
+        <button type="submit" id="btn-valider-pnj" class="primaire">Créer le PNJ</button>
       </div>
     </form>
   </dialog>

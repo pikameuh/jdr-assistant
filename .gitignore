@@ -20,3 +20,4 @@ data/rules.db
 rules/**/*.pdf
 rules/**/*.zip
 data/sessions/
+data/historique/

@@ -6,6 +6,7 @@ from agent_jdr.core.rules_index import (
     Passage,
     RulesIndex,
     construire_index,
+    nom_du_livre,
     requete_fts,
 )
 
@@ -99,3 +100,27 @@ def test_raccourci_search_transmet_les_arguments(monkeypatch):
     monkeypatch.setattr("sys.argv", ["search", "faire le plein", "--brut", "-n", "3"])
     assert rules_index.search_cli() == 0
     assert recus == [["search", "faire le plein", "--brut", "-n", "3"]]
+
+
+# --- Filtre par livre (livres cochés) ----------------------------------------------------
+
+
+def test_filtre_par_livre(tmp_path):
+    chemin = tmp_path / "rules.db"
+    construire_index([
+        passage("Le carburant coûte cher.", "Voyages", page=196),
+        passage("Le carburant des PNJ.", "PNJ", livre="Guide du Meneur", page=114),
+    ], chemin)
+    def livres(filtre):
+        with RulesIndex(chemin, filtre) as idx:
+            return sorted(r.passage.livre for r in idx.rechercher("carburant"))
+    assert livres(None) == ["Guide du Meneur", "Manuel des joueurs"]
+    assert livres(["Guide du Meneur"]) == ["Guide du Meneur"]
+    assert livres([]) == []
+    with RulesIndex(chemin, []) as idx:
+        assert idx.passages_par_livre() == {"Guide du Meneur": 1, "Manuel des joueurs": 1}  # sans filtre
+
+
+def test_nom_du_livre():
+    assert nom_du_livre("MA - Guide du Meneur 1.5.pdf") == "Guide du Meneur"
+    assert nom_du_livre("Écran du meneur.pdf") == "Écran du meneur"

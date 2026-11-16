@@ -13,6 +13,7 @@ from agent_jdr.core.config import (
     charger_secrets,
 )
 from agent_jdr.core.edition_config import (
+    choisir_livres,
     choisir_modele,
     enregistrer_cles,
     enregistrer_config,
@@ -167,3 +168,37 @@ def test_ecrire_config_de_test_inclut_les_nouveaux_fichiers(tmp_path):
     config = charger_config(ecrire_config(tmp_path))
     assert config.fichiers.dossier_des_sessions.name == "sessions"
     assert config.fichiers.catalogue_des_modeles.name == "modeles.yaml"
+
+
+# --- Livres utilisés -------------------------------------------------------------------
+
+
+def test_choisir_livres_garde_les_commentaires(config_commentee):
+    avant = config_commentee.read_text(encoding="utf-8")
+    config = choisir_livres(config_commentee, ["Écran du meneur.pdf"])
+    assert config.regles.livres_utilises == ("Écran du meneur.pdf",)
+    apres = config_commentee.read_text(encoding="utf-8")
+    assert 'livres_utilises: ["Écran du meneur.pdf"]' in apres
+    lignes_changees = [a for a, b in zip(avant.splitlines(), apres.splitlines(), strict=True) if a != b]
+    assert len(lignes_changees) == 1  # seule la ligne du réglage change
+
+
+def test_choisir_aucun_livre(config_commentee):
+    assert choisir_livres(config_commentee, []).regles.livres_utilises == ()
+
+
+@pytest.mark.parametrize("nom", ["Livre #2.pdf", "Livre.txt"])
+def test_choisir_livres_nom_refuse_n_ecrit_rien(config_commentee, nom):
+    avant = config_commentee.read_text(encoding="utf-8")
+    with pytest.raises(ConfigInvalide):
+        choisir_livres(config_commentee, [nom])
+    assert config_commentee.read_text(encoding="utf-8") == avant
+
+
+def test_remplacer_une_liste_ecrite_en_colonne():
+    texte = "regles:\n  livres_utilises:  # choix\n  - A.pdf\n  -   B.pdf\n# suite\nfichiers:\n  x: 1\n"
+    assert remplacer_reglage(texte, "regles", "livres_utilises", '["C.pdf"]') == (
+        'regles:\n  livres_utilises: ["C.pdf"]  # choix\n# suite\nfichiers:\n  x: 1\n'
+    )
+    texte = "regles:\n  livres_utilises:\n    - A.pdf\n  autre: 2\n"
+    assert remplacer_reglage(texte, "regles", "livres_utilises", "[]") == "regles:\n  livres_utilises: []\n  autre: 2\n"

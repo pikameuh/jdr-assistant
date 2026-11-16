@@ -25,7 +25,7 @@ from agent_jdr.core.fournisseurs.base import (
     ReponseIncomplete,
 )
 from agent_jdr.core.persona import PersonaInvalide, charger_personas
-from agent_jdr.core.rules_index import RulesIndex
+from agent_jdr.core.rules_index import RulesIndex, livres_choisis
 from agent_jdr.core.scene import Scene
 
 
@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         enjeux=args.enjeux,
     )
     try:
-        index = RulesIndex(args.db or config.fichiers.index_des_regles)
+        index = RulesIndex(args.db or config.fichiers.index_des_regles, livres_choisis(config))
     except FileNotFoundError as e:
         _erreur(str(e))
         return 1

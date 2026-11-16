@@ -49,8 +49,8 @@ def enregistrer_config(chemin: Path, texte: str) -> Config:
 def remplacer_reglage(texte: str, section: str, nom: str, valeur: str) -> str:
     """Remplace la valeur de `section > nom` dans le texte YAML, sans toucher au reste.
 
-    Ne gère que les réglages simples sur une ligne (`  nom: valeur`), comme
-    `fournisseur` et `modele`.
+    `valeur` est écrite sur une ligne (`  nom: valeur`). Si l'ancienne valeur était écrite
+    sous la clé (liste en colonne, `  - élément`), ces lignes sont retirées.
     """
     lignes = texte.splitlines(keepends=True)
     dans_section = False
@@ -59,12 +59,25 @@ def remplacer_reglage(texte: str, section: str, nom: str, valeur: str) -> str:
             dans_section = ligne.split(":", 1)[0].strip() == section
             continue
         if dans_section:
-            m = re.match(rf"^(\s+{re.escape(nom)}:)[^\n#]*(#.*)?(\r?\n)?$", ligne)
+            m = re.match(rf"^(\s+)({re.escape(nom)}:)([^\n#]*)(#.*)?(\r?\n)?$", ligne)
             if m:
-                commentaire = f"  {m.group(2)}" if m.group(2) else ""
-                lignes[i] = f"{m.group(1)} {valeur}{commentaire}{m.group(3) or ''}"
+                retrait, valeur_sous_la_cle = len(m.group(1)), not m.group(3).strip()
+                commentaire = f"  {m.group(4)}" if m.group(4) else ""
+                lignes[i] = f"{m.group(1)}{m.group(2)} {valeur}{commentaire}{m.group(5) or ''}"
+                fin = i + 1
+                while valeur_sous_la_cle and fin < len(lignes) and _suite_de_valeur(lignes[fin], retrait):
+                    fin += 1
+                del lignes[i + 1:fin]
                 return "".join(lignes)
     raise ConfigInvalide(f"réglage « {section} > {nom} » introuvable dans le fichier de configuration")
+
+
+def _suite_de_valeur(ligne: str, retrait_cle: int) -> bool:
+    """Ligne qui appartient à une valeur écrite sous sa clé : plus en retrait, ou élément « - »."""
+    if not ligne.strip():
+        return False
+    retrait = len(ligne) - len(ligne.lstrip(" "))
+    return retrait > retrait_cle or (retrait == retrait_cle and ligne.lstrip(" ").startswith("- "))
 
 
 def choisir_modele(chemin: Path, section: str, fournisseur: str, modele: str) -> Config:
@@ -74,6 +87,16 @@ def choisir_modele(chemin: Path, section: str, fournisseur: str, modele: str) ->
     texte = chemin.read_text(encoding="utf-8")
     texte = remplacer_reglage(texte, section, "fournisseur", fournisseur)
     texte = remplacer_reglage(texte, section, "modele", modele)
+    return enregistrer_config(chemin, texte)
+
+
+def choisir_livres(chemin: Path, fichiers: list[str]) -> Config:
+    """Enregistre la liste des livres utilisés (`regles > livres_utilises`), sur une ligne."""
+    for nom in fichiers:
+        if "#" in nom or "\n" in nom:
+            raise ConfigInvalide(f"« {nom} » : un nom de livre ne peut contenir ni « # » ni retour à la ligne")
+    texte = chemin.read_text(encoding="utf-8")
+    texte = remplacer_reglage(texte, "regles", "livres_utilises", json.dumps(list(fichiers), ensure_ascii=False))
     return enregistrer_config(chemin, texte)
 
 

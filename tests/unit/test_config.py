@@ -10,6 +10,7 @@ from agent_jdr.core.config import (
     ENTREE_SECRETS,
     NIVEAUX_DE_REFLEXION,
     ConfigInvalide,
+    charger_catalogue,
     charger_config,
     charger_secrets,
     conseil_cle,
@@ -29,12 +30,35 @@ def ecrire(dossier, donnees):
 
 
 def test_config_livree_valide():
+    # Le modèle est choisi par l'utilisateur (fichier modifiable) : on vérifie seulement
+    # qu'il figure au catalogue de son fournisseur, sans imposer un nom.
     config = charger_config()
-    assert config.dialogue.fournisseur == config.questions_de_regles.fournisseur == "anthropic"
-    assert config.dialogue.modele == "claude-sonnet-5-5"
-    assert config.questions_de_regles.modele == "claude-sonnet-5-5"
+    catalogue = charger_catalogue(config.fichiers.catalogue_des_modeles)
+    for reglages in (config.dialogue, config.questions_de_regles):
+        assert reglages.modele in [m.nom for m in catalogue.modeles(reglages.fournisseur)]
     assert config.dialogue.consignes and config.questions_de_regles.consignes
     assert config.fichiers.index_des_regles == CONFIG_DEFAUT.parent / "data" / "rules.db"
+    assert config.fichiers.historique_des_recherches == CONFIG_DEFAUT.parent / "data" / "historique"
+
+
+@pytest.mark.parametrize(
+    "livres, message",
+    [
+        ("Manuel.pdf", "doit être une liste"),
+        (["Manuel.txt"], "nom d'un fichier PDF"),
+        (["sous/Manuel.pdf"], "nom d'un fichier PDF"),
+        (["A.pdf", "A.pdf"], "deux fois"),
+    ],
+)
+def test_livres_utilises_incorrects(tmp_path, donnees, livres, message):
+    donnees["regles"]["livres_utilises"] = livres
+    with pytest.raises(ConfigInvalide, match=message):
+        charger_config(ecrire(tmp_path, donnees))
+
+
+def test_livres_utilises_liste_vide_permise(tmp_path, donnees):
+    donnees["regles"]["livres_utilises"] = []
+    assert charger_config(ecrire(tmp_path, donnees)).regles.livres_utilises == ()
 
 
 def test_chemins_relatifs_au_dossier_du_fichier(tmp_path, donnees):

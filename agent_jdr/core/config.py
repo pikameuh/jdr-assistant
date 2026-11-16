@@ -59,6 +59,8 @@ def _message_en_francais(err: dict[str, Any]) -> str:
             return "doit être un texte"
         case "model_type" | "dict_type":
             return "doit contenir des sous-réglages « nom: valeur »"
+        case "tuple_type" | "list_type":
+            return "doit être une liste, ex. [\"Livre 1.pdf\", \"Livre 2.pdf\"]"
     return err["msg"]
 
 
@@ -103,12 +105,30 @@ class ReglagesQuestions(ReglagesModele):
     passages_envoyes: int = Field(ge=1, le=50)
 
 
+class ReglagesRegles(_Strict):
+    """Livres de règles utilisés par les recherches (questions de règles et dialogue)."""
+
+    livres_utilises: tuple[str, ...]
+
+    @model_validator(mode="after")
+    def _noms_de_pdf(self) -> ReglagesRegles:
+        for nom in self.livres_utilises:
+            if not nom.lower().endswith(".pdf") or "/" in nom or "\\" in nom:
+                raise ValueError(
+                    f"« {nom} » : indiquez le nom d'un fichier PDF du dossier des livres (ex. « Mon livre.pdf »)"
+                )
+        if len(set(self.livres_utilises)) != len(self.livres_utilises):
+            raise ValueError("un même livre est cité deux fois")
+        return self
+
+
 class Fichiers(_Strict):
     index_des_regles: Path
     dossier_des_pnj: Path
     dossier_des_pdf: Path
     secrets: Path
     dossier_des_sessions: Path
+    historique_des_recherches: Path
     catalogue_des_modeles: Path
     modele_de_pnj: Path
 
@@ -116,6 +136,7 @@ class Fichiers(_Strict):
 class Config(_Strict):
     dialogue: ReglagesDialogue
     questions_de_regles: ReglagesQuestions
+    regles: ReglagesRegles
     fichiers: Fichiers
 
 

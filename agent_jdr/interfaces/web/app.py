@@ -15,6 +15,7 @@ import os
 import re
 import socket
 import sys
+import tempfile
 import threading
 import webbrowser
 from collections.abc import Callable, Iterator
@@ -24,6 +25,7 @@ from typing import Any, Literal
 
 import markdown
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,6 +45,7 @@ from agent_jdr.core.config import (
     charger_secrets,
 )
 from agent_jdr.core.edition_config import (
+    choisir_livres,
     choisir_modele,
     enregistrer_cles,
     enregistrer_config,
@@ -51,15 +54,26 @@ from agent_jdr.core.edition_config import (
 )
 from agent_jdr.core.fournisseurs import creer_fournisseur
 from agent_jdr.core.fournisseurs.base import ErreurFournisseur, IdentifiantsAbsents, ReponseIncomplete
+from agent_jdr.core.historique import Historique, Recherche, RechercheInconnue
+from agent_jdr.core.livres import (
+    TAILLE_MAX,
+    ErreurIndexation,
+    LivreRefuse,
+    ajouter_pdf,
+    etat_livres,
+    reconstruire_index,
+)
 from agent_jdr.core.persona import (
     FicheRefusee,
     Persona,
+    PersonaInconnu,
     PersonaInvalide,
     charger_modele_de_fiche,
     charger_personas,
     creer_fiche,
+    modifier_fiche,
 )
-from agent_jdr.core.rules_index import RulesIndex
+from agent_jdr.core.rules_index import RulesIndex, livres_choisis
 from agent_jdr.core.scene import Scene
 from agent_jdr.core.sessions import (
     DepotSessions,
@@ -125,6 +139,10 @@ class Fait(BaseModel):
     fait: str = Field(min_length=1)
 
 
+class ChoixLivres(BaseModel):
+    fichiers: list[str]
+
+
 # --- Application -----------------------------------------------------------------------
 
 
@@ -175,7 +193,7 @@ def creer_app(
     @contextmanager
     def index(cfg: Config) -> Iterator[RulesIndex]:
         try:
-            idx = RulesIndex(cfg.fichiers.index_des_regles)
+            idx = RulesIndex(cfg.fichiers.index_des_regles, livres_choisis(cfg))
         except FileNotFoundError as e:
             raise ErreurApi(409, str(e)) from e
         with idx:
@@ -277,24 +295,153 @@ def creer_app(
         cfg = config()
         reglages = cfg.questions_de_regles
         limite = corps.passages or reglages.passages_envoyes
+        if not cfg.regles.livres_utilises:
+            raise ErreurApi(409, "Aucun livre de règles n'est coché : choisissez-en au moins un dans l'onglet Livres.")
         with index(cfg) as idx:
             if corps.brut:
-                return {"passages": [
+                resultat: dict[str, Any] = {"passages": [
                     {"reference": r.passage.reference(), "texte": r.passage.texte, "score": round(r.score, 2)}
                     for r in idx.rechercher(corps.question, limite)
                 ]}
-            fournisseur = fabrique_fournisseur(reglages, cle_api=secrets(cfg).recherche)
-            with appel_modele():
-                reponse = rules_qa.repondre(corps.question, idx, reglages, fournisseur, limite=limite)
+            else:
+                fournisseur = fabrique_fournisseur(reglages, cle_api=secrets(cfg).recherche)
+                with appel_modele():
+                    reponse = rules_qa.repondre(corps.question, idx, reglages, fournisseur, limite=limite)
+                resultat = {
+                    "segments": [{"texte": s.texte, "sources": list(s.sources)} for s in reponse.segments],
+                    "sources": [
+                        {"reference": s.passage.reference(), "extraits": list(s.extraits), "texte": s.passage.texte}
+                        for s in reponse.sources
+                    ],
+                    "extraits_ecartes": reponse.extraits_ecartes,
+                    "modele": f"{reglages.fournisseur} · {reglages.modele}",
+                }
+        resultat["livres"] = livres_choisis(cfg)
+        recherche = historique(cfg).ajouter(corps.question, "passages" if corps.brut else "reponse", resultat)
+        return {**resultat, "id_historique": recherche.id}
+
+    # --- Historique des questions de règles --------------------------------------------
+
+    def historique(cfg: Config) -> Historique:
+        return Historique(cfg.fichiers.historique_des_recherches)
+
+    def resume(r: Recherche) -> dict[str, Any]:
+        if r.mode == "reponse":
+            apercu = "".join(s.get("texte", "") for s in r.resultat.get("segments", []))
+        else:
+            apercu = f"{len(r.resultat.get('passages', []))} passage(s), sans appel au modèle"
         return {
-            "segments": [{"texte": s.texte, "sources": list(s.sources)} for s in reponse.segments],
-            "sources": [
-                {"reference": s.passage.reference(), "extraits": list(s.extraits), "texte": s.passage.texte}
-                for s in reponse.sources
-            ],
-            "extraits_ecartes": reponse.extraits_ecartes,
-            "modele": f"{reglages.fournisseur} · {reglages.modele}",
+            "id": r.id, "date": r.date.isoformat(), "question": r.question, "mode": r.mode,
+            "apercu": " ".join(apercu.split())[:200],
         }
+
+    @app.get("/api/historique")
+    def lister_historique(q: str = "") -> list[dict[str, Any]]:
+        return [resume(r) for r in historique(config()).lister(q)]
+
+    @app.get("/api/historique/{id_recherche}")
+    def lire_recherche(id_recherche: str) -> dict[str, Any]:
+        try:
+            r = historique(config()).lire(id_recherche)
+        except RechercheInconnue as e:
+            raise ErreurApi(404, "Recherche introuvable (supprimée ?).") from e
+        return {**resume(r), "resultat": r.resultat}
+
+    @app.delete("/api/historique/{id_recherche}", status_code=204)
+    def supprimer_recherche(id_recherche: str) -> None:
+        try:
+            historique(config()).supprimer(id_recherche)
+        except RechercheInconnue as e:
+            raise ErreurApi(404, "Recherche introuvable (déjà supprimée ?).") from e
+
+    @app.delete("/api/historique")
+    def vider_historique() -> dict[str, int]:
+        return {"supprimees": historique(config()).vider()}
+
+    # --- Livres de règles ------------------------------------------------------------
+
+    def vue_livres(cfg: Config, message: str = "") -> dict[str, Any]:
+        livres = etat_livres(cfg.fichiers.dossier_des_pdf, cfg.fichiers.index_des_regles, cfg.regles.livres_utilises)
+        return {
+            "dossier": str(cfg.fichiers.dossier_des_pdf),
+            "index_present": cfg.fichiers.index_des_regles.is_file(),
+            "livres": [vars(l) for l in livres],
+            "taille_max": TAILLE_MAX,
+            "message": message,
+        }
+
+    @app.get("/api/livres")
+    def lister_livres() -> dict[str, Any]:
+        return vue_livres(config())
+
+    def enregistrer_choix(cfg: Config, fichiers: list[str]) -> Config:
+        with verrou_config:
+            try:
+                return choisir_livres(chemin_config, fichiers)
+            except ConfigInvalide as e:
+                raise ErreurApi(422, f"Rien n'a été enregistré : {e}") from e
+
+    @app.put("/api/livres/choix")
+    def choisir(corps: ChoixLivres) -> dict[str, Any]:
+        cfg = config()
+        connus = {l.fichier for l in etat_livres(
+            cfg.fichiers.dossier_des_pdf, cfg.fichiers.index_des_regles, cfg.regles.livres_utilises)}
+        inconnus = [f for f in corps.fichiers if f not in connus]
+        if inconnus:
+            raise ErreurApi(422, f"Livre(s) absent(s) du dossier des livres : {', '.join(inconnus)}")
+        fichiers = list(dict.fromkeys(corps.fichiers))  # sans doublon, ordre conservé
+        return vue_livres(enregistrer_choix(cfg, fichiers))
+
+    def indexer() -> str:
+        try:
+            return reconstruire_index(chemin_config)
+        except ErreurIndexation as e:
+            raise ErreurApi(502, str(e)) from e
+
+    @app.post("/api/livres/indexation")
+    def reindexer() -> dict[str, Any]:
+        config()  # configuration lisible avant de lancer la construction
+        return vue_livres(config(), indexer())
+
+    @app.post("/api/livres", status_code=201)
+    async def envoyer_livre(request: Request, nom: str) -> dict[str, Any]:
+        """Corps = le PDF brut (pas de formulaire multipart) ; `nom` = nom du fichier."""
+        cfg = config()
+        # Type imposé : un site tiers ne peut pas l'envoyer sans autorisation préalable du navigateur.
+        if request.headers.get("content-type") != "application/pdf":
+            raise ErreurApi(415, "Envoyez le fichier comme PDF (type application/pdf).")
+        if int(request.headers.get("content-length") or 0) > TAILLE_MAX:
+            raise ErreurApi(413, f"Fichier trop gros (maximum {TAILLE_MAX // (1024 * 1024)} Mo).")
+        with tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024) as tampon:
+            taille = 0
+            async for morceau in request.stream():
+                taille += len(morceau)
+                if taille > TAILLE_MAX:
+                    raise ErreurApi(413, f"Fichier trop gros (maximum {TAILLE_MAX // (1024 * 1024)} Mo).")
+                tampon.write(morceau)
+            tampon.seek(0)
+            try:
+                chemin = await run_in_threadpool(ajouter_pdf, cfg.fichiers.dossier_des_pdf, nom, tampon)
+            except LivreRefuse as e:
+                raise ErreurApi(422, str(e)) from e
+        return await run_in_threadpool(_apres_envoi, chemin)
+
+    def _apres_envoi(chemin: Path) -> dict[str, Any]:
+        """Indexe le PDF ajouté puis le coche. Indexation impossible → le PDF est retiré."""
+        try:
+            message = indexer()
+        except ErreurApi as e:
+            chemin.unlink(missing_ok=True)
+            raise ErreurApi(e.statut, f"{e.message}\nLe fichier « {chemin.name} » n'a pas été ajouté.") from e
+        cfg = config()
+        if chemin.name not in cfg.regles.livres_utilises:
+            cfg = enregistrer_choix(cfg, [*cfg.regles.livres_utilises, chemin.name])
+        vue = vue_livres(cfg, message)
+        ajoute = next(l for l in vue["livres"] if l["fichier"] == chemin.name)
+        if not ajoute["passages"]:
+            vue["message"] += (f"\nAttention : aucun texte trouvé dans « {chemin.name} » "
+                               "(PDF scanné, sans texte ?). Il ne sera jamais trouvé par les recherches.")
+        return vue
 
     # --- PNJ et sessions -------------------------------------------------------------
 
@@ -329,6 +476,18 @@ def creer_app(
         except FicheRefusee as e:
             statut = 409 if "existe déjà" in e.erreurs.get("id", "") else 422
             raise ErreurApi(statut, str(e), e.erreurs) from e
+        return {"id": persona.id, "nom": persona.nom, "role": persona.role, "espece": persona.espece}
+
+    @app.put("/api/personas/{id_persona}")
+    def modifier_persona(id_persona: str, corps: NouvelleFiche) -> dict[str, str]:
+        cfg = config()
+        personas(cfg)  # une fiche cassée est signalée avant toute écriture
+        try:
+            persona = modifier_fiche(cfg.fichiers.dossier_des_pnj, id_persona, corps.fiche)
+        except PersonaInconnu as e:
+            raise ErreurApi(404, f"PNJ inconnu « {id_persona} ».") from e
+        except FicheRefusee as e:
+            raise ErreurApi(422, str(e), e.erreurs) from e
         return {"id": persona.id, "nom": persona.nom, "role": persona.role, "espece": persona.espece}
 
     def vue_session(session: SessionDialogue, noms: dict[str, Persona]) -> dict[str, Any]:

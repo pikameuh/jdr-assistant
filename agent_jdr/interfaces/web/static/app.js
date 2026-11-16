@@ -16,9 +16,13 @@ function el(tag, props = {}, ...enfants) {
   return n;
 }
 
-async function api(methode, url, corps) {
+// `fichier` : envoyé tel quel (PDF), au lieu d'un corps JSON.
+async function api(methode, url, corps, fichier) {
   const options = { method: methode, headers: {} };
-  if (corps !== undefined) {
+  if (fichier) {
+    options.headers["Content-Type"] = "application/pdf";
+    options.body = fichier;
+  } else if (corps !== undefined) {
     options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(corps);
   }
@@ -82,11 +86,13 @@ function afficherVue(nom) {
     b.classList.toggle("actif", actif);
     b.setAttribute("aria-selected", actif);
   }
-  $("#vue-regles").classList.toggle("cache", nom !== "regles");
-  $("#vue-pnj").classList.toggle("cache", nom !== "pnj");
+  for (const v of VUES) $(`#vue-${v}`).classList.toggle("cache", nom !== v);
   localStorage.setItem("vue", nom);
   if (nom === "pnj") chargerSessions();
+  if (nom === "regles") chargerHistorique();
+  if (nom === "livres") chargerLivres();
 }
+const VUES = ["regles", "pnj", "livres"];
 for (const b of document.querySelectorAll(".onglet")) b.addEventListener("click", () => afficherVue(b.dataset.vue));
 
 // ============================ Règles ============================
@@ -97,9 +103,15 @@ function carteChargement(question) {
     el("p", { class: "chargement", textContent: "Recherche dans les livres et rédaction de la réponse" }));
 }
 
-function carteReponse(question, r) {
+// Origine affichée sous la question : modèle, livres consultés, date (si rouverte depuis l'historique).
+function meta(texte, r, date) {
+  return [texte, r.livres?.length ? `Livres : ${r.livres.join(", ")}` : "", date ? `Historique · ${dateCourte(date)}` : ""]
+    .filter(Boolean).join(" · ");
+}
+
+function carteReponse(question, r, date = null) {
   const carte = el("article", { class: "carte reponse" }, el("p", { class: "question", textContent: question }));
-  carte.append(el("div", { class: "meta", textContent: r.modele }));
+  carte.append(el("div", { class: "meta", textContent: meta(r.modele, r, date) }));
   const sources = r.sources.map((s, i) => el("div", { class: "source" },
     el("div", { class: "ref", textContent: `[${i + 1}] ${s.reference}` }),
     s.extraits.map((x) => el("blockquote", { textContent: x.split(/\s+/).join(" ") })),
@@ -128,10 +140,10 @@ function carteReponse(question, r) {
   return carte;
 }
 
-function cartePassages(question, r) {
+function cartePassages(question, r, date = null) {
   const carte = el("article", { class: "carte reponse" },
     el("p", { class: "question", textContent: question }),
-    el("div", { class: "meta", textContent: `Passages trouvés (sans appel au modèle) : ${r.passages.length}` }));
+    el("div", { class: "meta", textContent: meta(`Passages trouvés (sans appel au modèle) : ${r.passages.length}`, r, date) }));
   if (!r.passages.length) carte.append(el("p", { textContent: "Aucun passage ne correspond. Essayez d'autres mots des livres." }));
   for (const p of r.passages) {
     carte.append(el("div", { class: "source" },
@@ -153,6 +165,7 @@ async function poserQuestion(brut, bouton) {
       const r = await api("POST", "/api/regles", { question, brut, passages: Number.isFinite(n) ? n : null });
       attente.replaceWith(brut ? cartePassages(question, r) : carteReponse(question, r));
       $("#question").value = "";
+      chargerHistorique();
     } catch (e) {
       attente.remove();
       notifier(e.message, true);
@@ -163,6 +176,126 @@ async function poserQuestion(brut, bouton) {
 $("#form-regles").addEventListener("submit", (e) => { e.preventDefault(); poserQuestion(false, e.submitter || $("#form-regles .primaire")); });
 $("#btn-brut").addEventListener("click", (e) => poserQuestion(true, e.currentTarget));
 envoiParEntree($("#question"), $("#form-regles"));
+
+// ============================ Historique des recherches ============================
+
+let minuterieFiltre = null;
+async function chargerHistorique() {
+  const q = $("#filtre-historique").value.trim();
+  let entrees;
+  try { entrees = await api("GET", `/api/historique?q=${encodeURIComponent(q)}`); } catch (e) { notifier(e.message, true); return; }
+  const liste = $("#liste-historique");
+  liste.replaceChildren();
+  if (!entrees.length) liste.append(el("li", { class: "petit", textContent: q ? "Aucune recherche ne correspond." : "Aucune recherche pour l'instant." }));
+  for (const r of entrees) {
+    const ligne = el("li", { title: r.apercu, onclick: () => rouvrirRecherche(r.id) },
+      el("div", { class: "contenu" },
+        el("div", { class: "nom", textContent: r.question }),
+        el("div", { class: "details", textContent: `${dateCourte(r.date)} · ${r.mode === "reponse" ? "réponse" : "passages seulement"}` })),
+      el("button", { class: "bouton-retirer", title: "Supprimer cette recherche de l'historique", textContent: "✕",
+        onclick: (e) => { e.stopPropagation(); supprimerRecherche(r.id); } }));
+    liste.append(ligne);
+  }
+  $("#btn-vider-historique").disabled = !entrees.length || !!q;
+}
+
+async function rouvrirRecherche(id) {
+  try {
+    const r = await api("GET", `/api/historique/${id}`);
+    const carte = r.mode === "reponse" ? carteReponse(r.question, r.resultat, r.date) : cartePassages(r.question, r.resultat, r.date);
+    $("#resultats-regles").prepend(carte);
+    carte.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { notifier(e.message, true); chargerHistorique(); }
+}
+
+async function supprimerRecherche(id) {
+  try {
+    await api("DELETE", `/api/historique/${id}`);
+    notifier("Recherche supprimée de l'historique.");
+  } catch (e) { notifier(e.message, true); }
+  chargerHistorique();
+}
+
+$("#filtre-historique").addEventListener("input", () => {
+  clearTimeout(minuterieFiltre);
+  minuterieFiltre = setTimeout(chargerHistorique, 250);
+});
+$("#btn-vider-historique").addEventListener("click", async () => {
+  if (!await confirmer("Supprimer définitivement toutes les recherches de l'historique ?", "Tout effacer")) return;
+  try {
+    const { supprimees } = await api("DELETE", "/api/historique");
+    notifier(`${supprimees} recherche(s) supprimée(s).`);
+  } catch (e) { notifier(e.message, true); }
+  chargerHistorique();
+});
+
+// ============================ Livres ============================
+
+function tailleLisible(octets) {
+  return octets == null ? "—" : `${(octets / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
+}
+
+function afficherLivres(etat) {
+  const corps = $("#liste-livres");
+  corps.replaceChildren();
+  if (!etat.livres.length) corps.append(el("tr", {}, el("td", { colSpan: 5, class: "petit", textContent: "Aucun PDF dans le dossier des livres. Ajoutez-en un." })));
+  for (const l of etat.livres) {
+    const passages = !l.present ? el("span", { class: "manquant", textContent: "fichier absent du dossier" })
+      : l.passages == null ? el("span", { class: "manquant", textContent: "non indexé (reconstruisez l'index)" })
+      : l.passages === 0 ? el("span", { class: "manquant", textContent: "0 (aucun texte : PDF scanné ?)" })
+      : String(l.passages);
+    corps.append(el("tr", {},
+      el("td", {}, el("input", { type: "checkbox", checked: l.utilise, value: l.fichier, "aria-label": `Utiliser ${l.livre}`, onchange: enregistrerChoixLivres })),
+      el("td", { textContent: l.livre }), el("td", { class: "petit", textContent: l.fichier }),
+      el("td", {}, passages), el("td", { class: "petit", textContent: tailleLisible(l.taille) })));
+  }
+  $("#dossier-livres").textContent = `Dossier des livres : ${etat.dossier}`;
+  const alertes = [];
+  if (!etat.index_present) alertes.push("L'index des règles n'existe pas encore : cliquez sur « Reconstruire l'index ».");
+  if (!etat.livres.some((l) => l.utilise)) alertes.push("Aucun livre coché : les questions de règles sont refusées et les PNJ ne trouvent aucune règle.");
+  $("#livres-alerte").textContent = alertes.join("\n");
+  $("#livres-alerte").classList.toggle("cache", !alertes.length);
+  if (etat.message) $("#livres-message").textContent = etat.message;
+}
+
+async function chargerLivres() {
+  try { afficherLivres(await api("GET", "/api/livres")); } catch (e) { notifier(e.message, true); }
+}
+
+async function enregistrerChoixLivres() {
+  const fichiers = [...document.querySelectorAll("#liste-livres input[type=checkbox]:checked")].map((c) => c.value);
+  try {
+    afficherLivres(await api("PUT", "/api/livres/choix", { fichiers }));
+    notifier("Choix des livres enregistré.");
+  } catch (e) { notifier(e.message, true); chargerLivres(); }
+}
+
+// Envoi d'un PDF ou reconstruction : l'index est reconstruit à partir de tous les PDF (peut prendre plusieurs minutes).
+async function travailLivres(libelle, travail) {
+  const boutons = [$("#btn-ajouter-pdf"), $("#btn-reindexer")];
+  boutons.forEach((b) => { b.disabled = true; });
+  $("#livres-progression").textContent = libelle;
+  $("#livres-progression").classList.remove("cache");
+  $("#livres-message").textContent = "";
+  try { afficherLivres(await travail()); return true; }
+  catch (e) { $("#livres-message").textContent = e.message; notifier(e.message, true); chargerLivres(); return false; }
+  finally {
+    boutons.forEach((b) => { b.disabled = false; });
+    $("#livres-progression").classList.add("cache");
+  }
+}
+
+$("#btn-ajouter-pdf").addEventListener("click", () => $("#fichier-pdf").click());
+$("#fichier-pdf").addEventListener("change", async (e) => {
+  const fichier = e.currentTarget.files[0];
+  e.currentTarget.value = "";
+  if (!fichier) return;
+  const ok = await travailLivres(`Envoi de « ${fichier.name} » puis reconstruction de l'index (plusieurs minutes pour un gros livre)`,
+    () => api("POST", `/api/livres?nom=${encodeURIComponent(fichier.name)}`, undefined, fichier));
+  if (ok) notifier(`« ${fichier.name} » ajouté, indexé et coché.`);
+});
+$("#btn-reindexer").addEventListener("click", () =>
+  travailLivres("Reconstruction de l'index à partir de tous les PDF du dossier", () => api("POST", "/api/livres/indexation")));
 
 // ============================ PNJ ============================
 
@@ -304,6 +437,12 @@ async function ouvrirNouvelleSession(preselection = null) {
 }
 $("#btn-nouvelle-session").addEventListener("click", () => ouvrirNouvelleSession());
 $("#btn-ns-creer-pnj").addEventListener("click", () => { $("#dlg-session").close(); ouvrirNouveauPnj(); });
+$("#btn-ns-modifier-pnj").addEventListener("click", () => {
+  const id = $("#ns-persona").value;
+  if (!id) return;
+  $("#dlg-session").close();
+  ouvrirModifierPnj(id);
+});
 
 $("#form-session").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -485,8 +624,8 @@ $("#dlg-config").addEventListener("close", () => {
 // Formulaire pré-rempli (modèle guidé ou copie d'un PNJ). Chaque champ garde sa valeur de
 // départ (data-depart) : un champ encore identique est surligné, et signalé avant l'envoi.
 
-const LISTES_PNJ = ["parole.tics", "parole.exemples", "objectifs", "connaissances"];
 let idSaisiALaMain = false;
+let pnjModifie = null; // identifiant du PNJ en cours de modification ; null = création
 
 function identifiantDepuisNom(nom) {
   return nom.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -554,7 +693,8 @@ function champsSaisis() {
 }
 
 function marquerInchanges() {
-  for (const c of champsSaisis()) c.classList.toggle("inchange", c.value.trim() !== "" && c.value === c.dataset.depart);
+  // En modification, garder une valeur est normal : rien n'est surligné.
+  for (const c of champsSaisis()) c.classList.toggle("inchange", !pnjModifie && c.value.trim() !== "" && c.value === c.dataset.depart);
 }
 
 function lireFiche() {
@@ -622,7 +762,31 @@ async function chargerDepart(valeur) {
   $('#form-pnj [data-champ="nom"]').focus();
 }
 
+// Même formulaire pour créer et modifier : titre, identifiant, point de départ et bouton changent.
+function modeFormulairePnj(id, nom = "") {
+  pnjModifie = id;
+  $("#pnj-titre").textContent = id ? `Modifier le PNJ — ${nom}` : "Nouveau PNJ";
+  $("#btn-valider-pnj").textContent = id ? "Enregistrer les modifications" : "Créer le PNJ";
+  $("#form-pnj .depart-pnj").classList.toggle("cache", !!id);
+  $("#pnj-note-modif").classList.toggle("cache", !id);
+  $('#form-pnj [data-champ="id"]').readOnly = !!id;
+}
+
+async function ouvrirModifierPnj(id) {
+  try {
+    const fiche = await api("GET", `/api/personas/${id}`);
+    modeFormulairePnj(id, fiche.nom);
+    remplirFiche(fiche);
+    idSaisiALaMain = true; // l'identifiant ne suit plus le nom
+    $("#dlg-pnj").showModal();
+    $("#form-pnj .corps-pnj").scrollTop = 0;
+  } catch (e) { notifier(e.message, true); }
+}
+
+$("#btn-modifier-pnj").addEventListener("click", () => { if (sessionCourante) ouvrirModifierPnj(sessionCourante.persona); });
+
 async function ouvrirNouveauPnj() {
+  modeFormulairePnj(null);
   try {
     personasConnus = await api("GET", "/api/personas");
     $("#pnj-depart").replaceChildren(
@@ -660,6 +824,18 @@ $('#form-pnj [data-champ="id"]').addEventListener("input", (e) => { idSaisiALaMa
 $("#form-pnj").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fiche = lireFiche();
+  if (pnjModifie) {
+    const id = pnjModifie;
+    await occupe(e.submitter || $("#btn-valider-pnj"), async () => {
+      try {
+        const p = await api("PUT", `/api/personas/${id}`, { fiche });
+        $("#dlg-pnj").close();
+        notifier(`PNJ « ${p.nom} » enregistré.`);
+        if (sessionCourante?.persona === id) ouvrirSession(sessionCourante.id); else chargerSessions();
+      } catch (err) { afficherErreursPnj(err.message, err.champs); }
+    });
+    return;
+  }
   const inchanges = champsSaisis().filter((c) => c.classList.contains("inchange") && c.dataset.champ !== "id");
   if (inchanges.length && !await confirmer(
     `${inchanges.length} champ(s) n'ont pas été modifiés depuis le point de départ (surlignés). Créer le PNJ quand même ?`, "Créer quand même")) {
@@ -679,4 +855,4 @@ $("#form-pnj").addEventListener("submit", async (e) => {
 
 // ============================ Démarrage ============================
 
-afficherVue(localStorage.getItem("vue") === "pnj" ? "pnj" : "regles");
+afficherVue(VUES.includes(localStorage.getItem("vue")) ? localStorage.getItem("vue") : "regles");

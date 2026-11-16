@@ -120,3 +120,32 @@ def test_decouper_coupe_aux_fins_de_phrase():
 def test_decouper_garde_entiere_une_phrase_trop_longue():
     phrase = "Mot " * 50 + "fin."
     assert decouper(phrase, taille_max=20) == [phrase]
+
+
+# --- PDF autres que les deux livres (extraction simple) -----------------------------------
+
+
+def test_extraction_generique_pages_et_sommaire(tmp_path):
+    from agent_jdr.core.rules_extract import extraire_pdf
+    from tests.pdf_factice import ecrire_pdf
+
+    pdf = ecrire_pdf(
+        tmp_path / "Écran du meneur.pdf",
+        ["Tables de rencontres aléatoires.", "Prix du carburant au quai.", "Suite des prix."],
+        sommaire=[(1, "Rencontres", 1), (1, "Commerce", 2)],
+    )
+    passages = extraire_pdf(pdf)
+    assert [(p.livre, p.page, p.section) for p in passages] == [
+        ("Écran du meneur", 1, "Rencontres"), ("Écran du meneur", 2, "Commerce"), ("Écran du meneur", 3, "Commerce"),
+    ]
+    assert passages[1].texte == "Prix du carburant au quai."
+
+
+def test_extraction_pdf_illisible_nomme_le_fichier(tmp_path):
+    from agent_jdr.core.rules_extract import ExtractionImpossible, extraire_regles
+
+    (tmp_path / "abime.pdf").write_bytes(b"%PDF-1.7 tronque")
+    with pytest.raises(ExtractionImpossible, match="PDF illisible : abime.pdf"):
+        extraire_regles(tmp_path)
+    with pytest.raises(ExtractionImpossible, match="introuvable"):
+        extraire_regles(tmp_path, ["absent.pdf"])

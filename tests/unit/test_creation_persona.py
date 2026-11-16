@@ -5,9 +5,11 @@ import pytest
 from agent_jdr.core.config import charger_config
 from agent_jdr.core.persona import (
     FicheRefusee,
+    PersonaInconnu,
     charger_modele_de_fiche,
     charger_persona,
     creer_fiche,
+    modifier_fiche,
     valider_fiche,
 )
 
@@ -73,3 +75,45 @@ def test_modele_du_projet_devient_une_fiche_valide():
     modele = charger_modele_de_fiche(charger_config().fichiers.modele_de_pnj)
     assert "id" not in modele  # l'identifiant est déduit du nom par le formulaire
     assert valider_fiche({**modele, "id": "capitaine-rook"}).nom == modele["nom"]
+
+
+# --- Modification d'une fiche ----------------------------------------------------------
+
+
+def test_modifier_puis_relire(tmp_path):
+    creer_fiche(tmp_path, FICHE)
+    p = modifier_fiche(tmp_path, "capitaine-rook", {**FICHE, "nom": "Amiral Rook", "objectifs": ["Rentrer chez lui"]})
+    relue = charger_persona(tmp_path / "capitaine-rook.yaml")
+    assert relue == p and relue.nom == "Amiral Rook" and relue.objectifs == ("Rentrer chez lui",)
+    assert (tmp_path / "capitaine-rook.yaml").read_text(encoding="utf-8").startswith("# Fiche PNJ modifiée")
+    assert sorted(f.name for f in tmp_path.iterdir()) == ["capitaine-rook.yaml"]  # pas de fichier temporaire laissé
+
+
+def test_modifier_sans_identifiant_garde_celui_du_fichier(tmp_path):
+    creer_fiche(tmp_path, FICHE)
+    assert modifier_fiche(tmp_path, "capitaine-rook", {**FICHE, "id": ""}).id == "capitaine-rook"
+
+
+def test_modifier_identifiant_refuse(tmp_path):
+    creer_fiche(tmp_path, FICHE)
+    avant = (tmp_path / "capitaine-rook.yaml").read_text(encoding="utf-8")
+    with pytest.raises(FicheRefusee) as e:
+        modifier_fiche(tmp_path, "capitaine-rook", {**FICHE, "id": "autre-id"})
+    assert "ne peut pas changer" in e.value.erreurs["id"]
+    assert (tmp_path / "capitaine-rook.yaml").read_text(encoding="utf-8") == avant
+
+
+def test_modifier_fiche_invalide_n_ecrit_rien(tmp_path):
+    creer_fiche(tmp_path, FICHE)
+    avant = (tmp_path / "capitaine-rook.yaml").read_text(encoding="utf-8")
+    with pytest.raises(FicheRefusee) as e:
+        modifier_fiche(tmp_path, "capitaine-rook", {**FICHE, "role": "  "})
+    assert e.value.erreurs == {"role": "à remplir"}
+    assert (tmp_path / "capitaine-rook.yaml").read_text(encoding="utf-8") == avant
+
+
+@pytest.mark.parametrize("id_persona", ["inconnu", "../capitaine-rook", "Capitaine"])
+def test_modifier_pnj_inconnu(tmp_path, id_persona):
+    creer_fiche(tmp_path, FICHE)
+    with pytest.raises(PersonaInconnu):
+        modifier_fiche(tmp_path, id_persona, FICHE)

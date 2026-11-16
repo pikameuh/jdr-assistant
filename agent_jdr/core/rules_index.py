@@ -23,6 +23,22 @@ if TYPE_CHECKING:
 
 VERSION_SCHEMA = 1
 
+# PDF connus (extraction dédiée, voir rules_extract) → nom du livre dans les références.
+LIVRES_CONNUS: dict[str, str] = {
+    "MA - Manuel des joueurs 1.5.pdf": "Manuel des joueurs",
+    "MA - Guide du Meneur 1.5.pdf": "Guide du Meneur",
+}
+
+
+def nom_du_livre(fichier: str) -> str:
+    """Nom affiché dans les références : nom connu, sinon nom du fichier sans « .pdf »."""
+    return LIVRES_CONNUS.get(fichier, Path(fichier).stem)
+
+
+def livres_choisis(config: Config) -> list[str]:
+    """Noms des livres cochés (réglage `regles.livres_utilises`), pour filtrer la recherche."""
+    return [nom_du_livre(f) for f in config.regles.livres_utilises]
+
 
 @dataclass(frozen=True)
 class Passage:
@@ -126,9 +142,13 @@ def requete_fts(texte: str) -> str | None:
 
 
 class RulesIndex:
-    """Accès en lecture seule à l'index des règles."""
+    """Accès en lecture seule à l'index des règles.
 
-    def __init__(self, chemin_db: Path) -> None:
+    `livres` : noms des livres dans lesquels chercher ; None = tous, liste vide = aucun.
+    """
+
+    def __init__(self, chemin_db: Path, livres: Iterable[str] | None = None) -> None:
+        self.livres = None if livres is None else tuple(livres)
         if not chemin_db.is_file():
             raise FileNotFoundError(
                 f"Index des règles absent : {chemin_db}. "
@@ -138,17 +158,25 @@ class RulesIndex:
 
     def rechercher(self, requete: str, limite: int = 5) -> list[Resultat]:
         expression = requete_fts(requete)
-        if expression is None:
+        if expression is None or self.livres == ():
             return []
+        filtre, parametres = "", [expression]
+        if self.livres is not None:
+            filtre = f" AND livre IN ({', '.join('?' * len(self.livres))})"
+            parametres += self.livres
         lignes = self._con.execute(
             f"""
             SELECT livre, page, page_fin, chapitre, section, sous_section, texte,
                    bm25(passages, {_POIDS}) AS score
-            FROM passages WHERE passages MATCH ? ORDER BY score LIMIT ?
+            FROM passages WHERE passages MATCH ?{filtre} ORDER BY score LIMIT ?
             """,
-            (expression, limite),
+            (*parametres, limite),
         ).fetchall()
         return [Resultat(Passage(*ligne[:7]), ligne[7]) for ligne in lignes]
+
+    def passages_par_livre(self) -> dict[str, int]:
+        """Nombre de passages indexés de chaque livre (tous livres, sans filtre)."""
+        return dict(self._con.execute("SELECT livre, count(*) FROM passages GROUP BY livre").fetchall())
 
     def nombre_passages(self) -> int:
         return self._con.execute("SELECT count(*) FROM passages").fetchone()[0]
@@ -198,14 +226,23 @@ def main(argv: list[str] | None = None) -> int:
     db = args.db or config.fichiers.index_des_regles
 
     if args.commande == "build":
-        from agent_jdr.core.rules_extract import extraire_regles  # dépendance de build
+        from agent_jdr.core.rules_extract import ExtractionImpossible, extraire_regles  # dépendance de build
 
-        n = construire_index(extraire_regles(args.regles or config.fichiers.dossier_des_pdf), db)
+        dossier = args.regles or config.fichiers.dossier_des_pdf
+        try:
+            passages = extraire_regles(dossier)
+        except ExtractionImpossible as e:
+            print(f"Erreur : {e}", file=sys.stderr)
+            return 1
+        if not passages:
+            print(f"Erreur : aucun PDF lisible dans {dossier}", file=sys.stderr)
+            return 1
+        n = construire_index(passages, db)
         print(f"{n} passages indexés dans {db}")
         return 0
 
     limite = args.n or config.questions_de_regles.passages_envoyes
-    with RulesIndex(db) as index:
+    with RulesIndex(db, livres_choisis(config)) as index:
         if args.brut:
             for r in index.rechercher(args.requete, limite):
                 print(f"[{r.score:.2f}] {r.passage.reference()}")

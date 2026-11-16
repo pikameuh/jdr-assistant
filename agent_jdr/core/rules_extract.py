@@ -21,13 +21,10 @@ from pathlib import Path
 
 import pymupdf
 
-from agent_jdr.core.rules_index import Passage
+from agent_jdr.core.rules_index import LIVRES_CONNUS, Passage, nom_du_livre
 
-# Nom de fichier PDF → nom du livre tel qu'affiché dans les références.
-LIVRES: dict[str, str] = {
-    "MA - Manuel des joueurs 1.5.pdf": "Manuel des joueurs",
-    "MA - Guide du Meneur 1.5.pdf": "Guide du Meneur",
-}
+# Nom de fichier PDF → nom du livre tel qu'affiché dans les références (extraction dédiée).
+LIVRES = LIVRES_CONNUS
 
 # Numéro imprimé = numéro de page PDF - 1 (vérifié sur toutes les pages numérotées des deux livres).
 DECALAGE_PAGE = 1
@@ -361,12 +358,53 @@ def extraire_livre(pdf: Path, livre: str) -> list[Passage]:
     return acc.passages
 
 
-def extraire_regles(dossier: Path) -> list[Passage]:
-    """Passages des deux livres de règles présents dans `dossier`."""
+class ExtractionImpossible(RuntimeError):
+    """Un PDF de règles est absent ou illisible."""
+
+
+def extraire_pdf_generique(pdf: Path, livre: str) -> list[Passage]:
+    """Extraction simple pour un PDF autre que les deux livres de Metal Adventures.
+
+    Texte page par page (numéros de page du PDF), découpé en passages ; la section est
+    prise dans la table des matières intégrée au PDF quand il en a une. Un PDF scanné
+    (images sans texte) ne donne aucun passage.
+    """
     passages: list[Passage] = []
-    for nom_fichier, livre in LIVRES.items():
-        pdf = dossier / nom_fichier
+    with pymupdf.open(pdf) as doc:
+        titres: dict[int, str] = {}
+        for _niveau, titre, page in doc.get_toc(simple=True):
+            if page >= 1:
+                titres.setdefault(page, titre.strip())
+        section = ""
+        for page in doc:
+            numero = page.number + 1
+            section = titres.get(numero, section)
+            texte = " ".join(page.get_text("text").translate(_REMPLACEMENTS).split())
+            for morceau in decouper(texte) if texte else []:
+                passages.append(Passage(livre, numero, numero, "", section, "", morceau))
+    return passages
+
+
+def extraire_pdf(pdf: Path) -> list[Passage]:
+    """Passages d'un PDF : extraction dédiée pour les livres connus, simple sinon."""
+    livre = nom_du_livre(pdf.name)
+    if pdf.name in LIVRES:
+        return extraire_livre(pdf, livre)
+    return extraire_pdf_generique(pdf, livre)
+
+
+def extraire_regles(dossier: Path, fichiers: Iterable[str] | None = None) -> list[Passage]:
+    """Passages de tous les PDF de `dossier` (ou seulement de `fichiers`)."""
+    if fichiers is None:
+        pdfs = sorted(p for p in dossier.glob("*") if p.suffix.lower() == ".pdf")
+    else:
+        pdfs = [dossier / f for f in fichiers]
+    passages: list[Passage] = []
+    for pdf in pdfs:
         if not pdf.is_file():
-            raise FileNotFoundError(f"PDF de règles introuvable : {pdf}")
-        passages.extend(extraire_livre(pdf, livre))
+            raise ExtractionImpossible(f"PDF de règles introuvable : {pdf}")
+        try:
+            passages.extend(extraire_pdf(pdf))
+        except Exception as e:  # PDF abîmé, chiffré… : message lisible qui nomme le fichier
+            raise ExtractionImpossible(f"PDF illisible : {pdf.name} ({e})") from e
     return passages

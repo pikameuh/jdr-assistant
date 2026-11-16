@@ -67,7 +67,23 @@ textarea { resize: vertical; }
 
 /* --- Vues --- */
 .vue { flex: 1; overflow: auto; }
-#vue-regles { padding: 1.2rem; max-width: 960px; width: 100%; margin: 0 auto; }
+#vue-regles { display: flex; overflow: hidden; }
+.zone-regles { flex: 1; min-width: 0; overflow-y: auto; padding: 1.2rem; }
+.zone-regles > * { max-width: 960px; margin-left: auto; margin-right: auto; }
+.titre-liste.premier { margin-top: 0; }
+.liste-historique { margin-top: .6rem; }
+.liste-historique li { display: flex; gap: .3rem; align-items: flex-start; }
+.liste-historique .contenu { flex: 1; min-width: 0; }
+.liste-historique .nom { font-weight: 500; overflow-wrap: anywhere; }
+.liste-historique .bouton-retirer { width: 1.8rem; height: 1.8rem; font-size: .8rem; }
+#vue-livres { padding: 1.2rem; max-width: 960px; width: 100%; margin: 0 auto; }
+.titre-section { margin: 0 0 .4rem; font-size: 1.1rem; }
+.table-livres { width: 100%; border-collapse: collapse; margin: .8rem 0; font-size: .9rem; }
+.table-livres th, .table-livres td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--bord); }
+.table-livres th { color: var(--texte-2); font-weight: 500; font-size: .8rem; }
+.table-livres input[type=checkbox] { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); cursor: pointer; }
+.table-livres .manquant { color: var(--danger); }
+.message-livres { white-space: pre-wrap; }
 .carte { background: var(--fond-2); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 1rem; margin-bottom: 1rem; }
 .label-principal { display: block; font-weight: 600; margin-bottom: .4rem; }
 .formulaire-question label.petit { display: flex; align-items: center; gap: .4rem; white-space: nowrap; }
@@ -175,7 +191,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 
 @media (max-width: 760px) {
   .sous-titre { display: none; }
-  #vue-pnj { flex-direction: column; }
+  #vue-pnj, #vue-regles { flex-direction: column; }
+  .table-livres th:nth-child(3), .table-livres td:nth-child(3) { display: none; }
   .barre-sessions { width: auto; max-height: 35vh; border-right: none; border-bottom: 1px solid var(--bord); }
   .bulle { max-width: 92%; }
 }

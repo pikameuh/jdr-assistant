@@ -80,6 +80,15 @@ questions_de_regles:
     - Cite les passages sur lesquels repose chaque affirmation de règle.
 
 
+# --- Livres de règles utilisés ------------------------------------------------
+# Livres (fichiers PDF du dossier des livres, voir « dossier_des_pdf ») dans
+# lesquels cherchent les questions de règles et les PNJ. Un livre retiré de la
+# liste reste dans l'index mais n'est plus consulté. Liste vide = aucun livre.
+# Se règle aussi dans l'onglet Livres de l'interface web.
+regles:
+  livres_utilises: ["MA - Manuel des joueurs 1.5.pdf", "MA - Guide du Meneur 1.5.pdf"]
+
+
 # --- Emplacement des fichiers -------------------------------------------------
 # Chemins relatifs au dossier qui contient ce fichier de configuration.
 fichiers:
@@ -87,12 +96,14 @@ fichiers:
   index_des_regles: data/rules.db
   # Dossier des fiches PNJ (un fichier .yaml par PNJ)
   dossier_des_pnj: agent_jdr/core/personas
-  # Dossier des livres de règles en PDF (utilisé seulement pour créer l'index)
+  # Dossier des livres de règles en PDF (utilisé pour créer l'index ; l'onglet Livres y ajoute les PDF)
   dossier_des_pdf: rules/MA - Manuel des joueurs 1.5
   # Fichier des clés API (jamais envoyé sur git ; modèle : secrets.exemple.yaml)
   secrets: secrets.yaml
   # Dossier où l'interface web garde les sessions de dialogue (historique des échanges)
   dossier_des_sessions: data/sessions
+  # Dossier où l'interface web garde l'historique des questions de règles
+  historique_des_recherches: data/historique
   # Liste des modèles proposés par l'interface web, par fournisseur
   catalogue_des_modeles: modeles.yaml
   # Fiche pré-remplie proposée quand on crée un PNJ depuis l'interface web

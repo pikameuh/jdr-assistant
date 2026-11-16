@@ -6,12 +6,15 @@ les valeurs chiffrées du jeu restent dans les livres de règles.
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 Texte = Field(min_length=1)
+MOTIF_ID = r"^[a-z0-9]+(-[a-z0-9]+)*$"  # identifiant = nom du fichier
 
 
 class _Strict(BaseModel):
@@ -34,7 +37,7 @@ class Secret(_Strict):
 
 
 class Persona(_Strict):
-    id: str = Field(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
+    id: str = Field(pattern=MOTIF_ID)
     nom: str = Texte
     espece: str = Texte
     origine: str = Texte
@@ -49,6 +52,10 @@ class Persona(_Strict):
 
 class PersonaInvalide(ValueError):
     """Fiche PNJ illisible ou non conforme au schéma."""
+
+
+class PersonaInconnu(LookupError):
+    """Aucune fiche PNJ avec cet identifiant."""
 
 
 def charger_persona(chemin: Path) -> Persona:
@@ -152,13 +159,13 @@ def valider_fiche(donnees: object) -> Persona:
         raise FicheRefusee(erreurs) from e
 
 
-def fiche_en_yaml(persona: Persona) -> str:
+def fiche_en_yaml(persona: Persona, origine: str = "créée") -> str:
     donnees = persona.model_dump(mode="json", exclude_defaults=True)
     for secret in donnees.get("secrets", []):
         if secret.get("condition_revelation") is None:
             secret.pop("condition_revelation", None)
     corps = yaml.safe_dump(donnees, allow_unicode=True, sort_keys=False, width=10_000)
-    return f"# Fiche PNJ créée depuis l'interface web.\n{corps}"
+    return f"# Fiche PNJ {origine} depuis l'interface web.\n{corps}"
 
 
 def creer_fiche(dossier: Path, donnees: object) -> Persona:
@@ -171,6 +178,28 @@ def creer_fiche(dossier: Path, donnees: object) -> Persona:
             f.write(fiche_en_yaml(persona))
     except FileExistsError as e:
         raise FicheRefusee({"id": f"un PNJ « {persona.id} » existe déjà ; choisissez un autre identifiant"}) from e
+    return persona
+
+
+def modifier_fiche(dossier: Path, id_persona: str, donnees: object) -> Persona:
+    """Valide puis remplace la fiche `<id_persona>.yaml`, qui doit exister.
+
+    L'identifiant ne change pas (c'est le nom du fichier, et les sessions y font
+    référence). Le fichier est réécrit à partir des champs : les commentaires d'une
+    fiche écrite à la main ne sont pas conservés.
+    """
+    chemin = dossier / f"{id_persona}.yaml"
+    if not re.fullmatch(MOTIF_ID, id_persona) or not chemin.is_file():
+        raise PersonaInconnu(id_persona)
+    if isinstance(donnees, dict):
+        donnees = {**donnees}
+        if donnees.get("id", id_persona) not in ("", id_persona):
+            raise FicheRefusee({"id": "l'identifiant d'un PNJ existant ne peut pas changer (les sessions y font référence)"})
+        donnees["id"] = id_persona
+    persona = valider_fiche(donnees)
+    temporaire = chemin.with_name(f".{chemin.name}.tmp")
+    temporaire.write_text(fiche_en_yaml(persona, "modifiée"), encoding="utf-8")
+    os.replace(temporaire, chemin)
     return persona
 
 

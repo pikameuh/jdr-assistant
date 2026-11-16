@@ -11,6 +11,7 @@ from agent_jdr.core.config import CONFIG_DEFAUT, charger_config, charger_secrets
 from agent_jdr.core.fournisseurs import creer_fournisseur
 from agent_jdr.core.rules_index import Passage, construire_index
 from agent_jdr.interfaces.web.app import creer_app
+from tests.pdf_factice import ecrire_pdf
 from tests.reglages_test import ecrire_config
 
 PLEIN = Passage("Manuel des joueurs", 196, 196, "Voyage", "Faire le plein", "", "Une pile énergétique coûte cher.")
@@ -351,3 +352,152 @@ def test_creer_pnj_existant_refuse(web_pnj):
     rep = web.post("/api/personas", json={"fiche": fiche})
     assert rep.status_code == 409 and "existe déjà" in rep.json()["champs"]["id"]
     assert (dossier / "orla-venn.yaml").read_text(encoding="utf-8") == avant
+
+
+# --- Modification de PNJ ---------------------------------------------------------------
+
+
+def test_modifier_pnj_puis_session_a_jour(web_pnj):
+    web, dossier = web_pnj
+    session = nouvelle_session(web)
+    fiche = {**web.get("/api/personas/orla-venn").json(), "nom": "Orla Venn-Kade"}
+    rep = web.put("/api/personas/orla-venn", json={"fiche": fiche})
+    assert rep.status_code == 200 and rep.json()["nom"] == "Orla Venn-Kade"
+    assert web.get("/api/personas/orla-venn").json()["nom"] == "Orla Venn-Kade"
+    assert web.get(f"/api/sessions/{session['id']}").json()["persona_nom"] == "Orla Venn-Kade"
+    assert sorted(p.name for p in dossier.iterdir()) == ["orla-venn.yaml"]
+
+
+def test_modifier_pnj_erreurs(web_pnj):
+    web, dossier = web_pnj
+    avant = (dossier / "orla-venn.yaml").read_text(encoding="utf-8")
+    fiche = web.get("/api/personas/orla-venn").json()
+    rep = web.put("/api/personas/orla-venn", json={"fiche": {**fiche, "personnalite": ""}})
+    assert rep.status_code == 422 and rep.json()["champs"] == {"personnalite": "à remplir"}
+    rep = web.put("/api/personas/orla-venn", json={"fiche": {**fiche, "id": "autre"}})
+    assert rep.status_code == 422 and "ne peut pas changer" in rep.json()["champs"]["id"]
+    assert web.put("/api/personas/inconnu", json={"fiche": fiche}).status_code == 404
+    assert (dossier / "orla-venn.yaml").read_text(encoding="utf-8") == avant
+
+
+# --- Historique des recherches ---------------------------------------------------------
+
+
+def test_historique_enregistre_rouvre_recherche_supprime(web, fabrique, message_factice, tmp_path):
+    fabrique.reponses(message_factice([("Ça coûte cher.", [(0, "coûte cher")])]))
+    r1 = web.post("/api/regles", json={"question": "prix pile énergétique"}).json()
+    r2 = web.post("/api/regles", json={"question": "pile énergétique", "brut": True}).json()
+    liste = web.get("/api/historique").json()
+    assert [(e["id"], e["mode"]) for e in liste] == [(r2["id_historique"], "passages"), (r1["id_historique"], "reponse")]
+    assert liste[1]["apercu"] == "Ça coûte cher."
+    detail = web.get(f"/api/historique/{r1['id_historique']}").json()
+    assert detail["question"] == "prix pile énergétique"
+    assert detail["resultat"]["segments"] == r1["segments"] and detail["resultat"]["livres"] == r1["livres"]
+    assert [e["id"] for e in web.get("/api/historique", params={"q": "COUTE"}).json()] == [r1["id_historique"]]
+    assert web.delete(f"/api/historique/{r1['id_historique']}").status_code == 204
+    assert web.get(f"/api/historique/{r1['id_historique']}").status_code == 404
+    assert web.delete(f"/api/historique/{r1['id_historique']}").status_code == 404
+    assert web.delete("/api/historique").json() == {"supprimees": 1}
+    assert web.get("/api/historique").json() == []
+    assert (tmp_path / "historique").is_dir()  # rangé dans le dossier configuré (temporaire)
+
+
+def test_historique_n_enregistre_pas_les_echecs(web, fabrique):
+    fabrique.client.messages.create.side_effect = TypeError(
+        "Could not resolve authentication method. Expected either api_key or auth_token to be set."
+    )
+    assert web.post("/api/regles", json={"question": "pile énergétique"}).status_code == 401
+    assert web.get("/api/historique").json() == []
+
+
+# --- Livres de règles ------------------------------------------------------------------
+
+
+@pytest.fixture
+def web_livres(tmp_path, fabrique):
+    """Dossier des livres et index temporaires, un PDF réel déjà indexé."""
+    dossier = tmp_path / "livres"
+    dossier.mkdir()
+    ecrire_pdf(dossier / "Ancien.pdf", ["Le carburant se paie au quai."])
+    db = tmp_path / "rules.db"
+    config = ecrire_config(
+        tmp_path,
+        fichiers={"dossier_des_pdf": str(dossier), "index_des_regles": str(db)},
+        regles={"livres_utilises": ["Ancien.pdf"]},
+    )
+    web = TestClient(creer_app(config, fabrique), base_url="http://127.0.0.1")
+    assert web.post("/api/livres/indexation").status_code == 200
+    return web, dossier, config
+
+
+def test_livres_etat(web_livres):
+    web, dossier, _ = web_livres
+    etat = web.get("/api/livres").json()
+    assert etat["index_present"] and etat["dossier"] == str(dossier)
+    assert [(l["fichier"], l["passages"], l["utilise"]) for l in etat["livres"]] == [("Ancien.pdf", 1, True)]
+
+
+def test_decocher_un_livre_persiste_et_filtre_la_recherche(web_livres):
+    web, _, config = web_livres
+    question = {"question": "carburant", "brut": True}
+    assert len(web.post("/api/regles", json=question).json()["passages"]) == 1
+    etat = web.put("/api/livres/choix", json={"fichiers": []}).json()
+    assert [l["utilise"] for l in etat["livres"]] == [False]
+    assert charger_config(config).regles.livres_utilises == ()  # écrit dans config.yaml
+    rep = web.post("/api/regles", json=question)
+    assert rep.status_code == 409 and "onglet Livres" in rep.json()["erreur"]
+    web.put("/api/livres/choix", json={"fichiers": ["Ancien.pdf"]})
+    assert len(web.post("/api/regles", json=question).json()["passages"]) == 1
+
+
+def test_choisir_un_livre_inconnu_refuse(web_livres):
+    web, _, config = web_livres
+    rep = web.put("/api/livres/choix", json={"fichiers": ["Inexistant.pdf"]})
+    assert rep.status_code == 422 and "Inexistant.pdf" in rep.json()["erreur"]
+    assert charger_config(config).regles.livres_utilises == ("Ancien.pdf",)
+
+
+def test_ajouter_pdf_indexe_et_coche(web_livres, tmp_path):
+    web, dossier, config = web_livres
+    pdf = ecrire_pdf(tmp_path / "source.pdf", ["Les pirates attaquent au cycle de nuit."]).read_bytes()
+    rep = web.post("/api/livres", params={"nom": "Écran du meneur.pdf"}, content=pdf, headers={"Content-Type": "application/pdf"})
+    assert rep.status_code == 201, rep.text
+    assert "2 passages indexés" in rep.json()["message"]
+    assert (dossier / "Écran du meneur.pdf").read_bytes() == pdf
+    assert charger_config(config).regles.livres_utilises == ("Ancien.pdf", "Écran du meneur.pdf")
+    passages = web.post("/api/regles", json={"question": "pirates", "brut": True}).json()["passages"]
+    assert passages[0]["reference"].startswith("Écran du meneur, p. 1")
+
+
+def test_ajouter_pdf_sans_texte_signale(web_livres, tmp_path):
+    web, _, _ = web_livres
+    pdf = ecrire_pdf(tmp_path / "vide.pdf", [""]).read_bytes()
+    rep = web.post("/api/livres", params={"nom": "Scan.pdf"}, content=pdf, headers={"Content-Type": "application/pdf"})
+    assert rep.status_code == 201 and "aucun texte trouvé" in rep.json()["message"]
+
+
+def test_ajouter_pdf_illisible_retire_et_index_conserve(web_livres):
+    web, dossier, config = web_livres
+    rep = web.post("/api/livres", params={"nom": "Abime.pdf"}, content=b"%PDF-1.7 tronque", headers={"Content-Type": "application/pdf"})
+    assert rep.status_code == 502
+    assert "PDF illisible : Abime.pdf" in rep.json()["erreur"] and "pas été ajouté" in rep.json()["erreur"]
+    assert sorted(p.name for p in dossier.iterdir()) == ["Ancien.pdf"]
+    assert charger_config(config).regles.livres_utilises == ("Ancien.pdf",)
+    assert [l["passages"] for l in web.get("/api/livres").json()["livres"]] == [1]
+
+
+@pytest.mark.parametrize(
+    "nom, contenu, type_, statut, message",
+    [
+        ("a.pdf", b"%PDF-1.7", "text/plain", 415, "application/pdf"),
+        ("a.pdf", b"<html>", "application/pdf", 422, "pas un fichier PDF"),
+        ("../a.pdf", b"%PDF-1.7", "application/pdf", 422, "Nom de fichier refusé"),
+        ("Ancien.pdf", b"%PDF-1.7", "application/pdf", 422, "existe déjà"),
+    ],
+)
+def test_ajouter_pdf_refuse(web_livres, nom, contenu, type_, statut, message):
+    web, dossier, _ = web_livres
+    rep = web.post("/api/livres", params={"nom": nom}, content=contenu, headers={"Content-Type": type_})
+    assert rep.status_code == statut and message in rep.json()["erreur"]
+    assert sorted(p.name for p in dossier.iterdir()) == ["Ancien.pdf"]
+    assert (dossier / "Ancien.pdf").read_bytes().startswith(b"%PDF-")

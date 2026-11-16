@@ -162,9 +162,13 @@ Cela prend quelques secondes et se termine par une ligne comme `2171 passages in
 
 Vous n'aurez à refaire cette étape que si les PDF changent ou si l'équipe vous le demande après une mise à jour.
 
+**Autres livres.** Tout PDF placé dans ce dossier est indexé, pas seulement les deux livres. Le plus simple est de l'ajouter depuis l'onglet **Livres** de l'interface web ([section 6](#onglet-livres)), qui reconstruit l'index tout seul. Si vous copiez un PDF à la main dans le dossier, relancez la commande ci-dessus. Un PDF autre que les deux livres est lu plus simplement : ses pages sont celles du fichier PDF (pas les numéros imprimés), et ses sections viennent de sa table des matières, s'il en a une. Un PDF scanné (des images, sans texte) ne donne aucun passage.
+
+**Choisir les livres consultés.** Le réglage `livres_utilises` de la section `regles` de `config.yaml` ([section 9](#section-regles)) liste les livres dans lesquels l'assistant cherche. Un livre retiré de la liste reste dans l'index, mais il n'est plus consulté. Inutile de reconstruire l'index après avoir changé ce réglage.
+
 ## 6. L'interface web
 
-L'interface web regroupe tout dans une page de votre navigateur : questions de règles, dialogue avec les PNJ (avec historique sauvegardé), création de PNJ, réglages, clés API et ce manuel. Elle tourne sur votre ordinateur ; elle n'est pas accessible depuis Internet.
+L'interface web regroupe tout dans une page de votre navigateur : questions de règles (avec leur historique), dialogue avec les PNJ (avec historique sauvegardé), création et modification de PNJ, choix et ajout des livres de règles, réglages, clés API et ce manuel. Elle tourne sur votre ordinateur ; elle n'est pas accessible depuis Internet.
 
 ### Lancer l'interface
 
@@ -181,7 +185,7 @@ Le navigateur s'ouvre tout seul sur la page `http://127.0.0.1:8000`. S'il ne s'o
 | `--config essai.yaml` | Utilise un autre fichier de configuration ([section 9](#essayer-un-réglage-sans-toucher-au-fichier-principal)). |
 | `--hote 0.0.0.0` | Rend l'interface accessible aux autres appareils du réseau local (une tablette à la table, par exemple). **Sans mot de passe** : toute personne du réseau pourrait modifier vos réglages et utiliser vos clés. À éviter sur un réseau public. |
 
-En haut de la page : les onglets **Règles** et **PNJ**, puis deux boutons à droite : **?** ouvre ce manuel, **⚙** ouvre la configuration.
+En haut de la page : les onglets **Règles**, **PNJ** et **Livres**, puis deux boutons à droite : **?** ouvre ce manuel, **⚙** ouvre la configuration.
 
 ### Onglet Règles
 
@@ -189,6 +193,17 @@ Tapez votre question, puis **Expliquer** (ou la touche **Entrée** ; **Maj+Entr�
 
 - **Passages seulement** : liste les passages trouvés dans les livres, sans interroger le modèle (gratuit), comme `--brut` en terminal.
 - **Passages des livres** : combien de passages envoyer au modèle pour cette question (comme `-n`). Laissé vide : le réglage `passages_envoyes` de la configuration.
+
+Seuls les livres cochés dans l'onglet **Livres** sont consultés ; la ligne grise sous la question indique lesquels. Si aucun livre n'est coché, la question est refusée.
+
+**Historique des recherches** (colonne de gauche) : chaque question est enregistrée, avec sa réponse ou ses passages, la plus récente en haut.
+
+- Cliquez sur une recherche pour **réafficher** sa réponse, sans nouvel appel au modèle (donc gratuit). Elle s'affiche en haut, marquée « Historique » avec sa date.
+- **Rechercher** : tapez des mots dans le champ du haut. Sont trouvées les recherches dont la question, la réponse ou les sources contiennent **tous** ces mots, sans tenir compte des accents ni des majuscules (« regle » trouve « Règle »).
+- **✕** à droite d'une recherche la supprime de l'historique.
+- **Tout effacer** supprime toutes les recherches, après confirmation. C'est définitif. Le bouton est grisé pendant une recherche dans l'historique, pour ne pas effacer par erreur plus que ce qui est affiché.
+
+Une question qui échoue (clé absente, refus du modèle) n'est pas enregistrée. L'historique est rangé dans le dossier `data/historique` (réglage `historique_des_recherches`), un fichier par recherche.
 
 ### Onglet PNJ : les sessions
 
@@ -200,6 +215,7 @@ Une **session** est une conversation entre un PNJ et un personnage joueur, dans 
 
 La liste à gauche montre toutes les sessions, la plus récente en haut ; cliquez sur une session pour la reprendre.
 
+- **Modifier le PNJ** : ouvre la fiche du PNJ de la session pour la corriger ([plus bas](#onglet-pnj--modifier-un-pnj)).
 - **Effacer l'historique** : efface tous les échanges de la session, mais garde le PNJ, le PJ, la scène et les faits. Pratique pour rejouer une scène depuis le début.
 - **Supprimer** : supprime la session entière. Une confirmation est demandée ; c'est définitif.
 
@@ -219,7 +235,38 @@ Cliquez sur **+ Nouveau PNJ** (ou sur « Créer un PNJ » dans la fenêtre de no
 
 **Créer le PNJ** vérifie la fiche : un champ manquant ou incorrect est indiqué en rouge sous le champ, et rien n'est enregistré. Un PNJ qui existe déjà n'est jamais écrasé (choisissez un autre identifiant). Une fois le PNJ créé, la fenêtre de nouvelle session s'ouvre avec ce PNJ déjà choisi.
 
-La fiche est enregistrée dans le dossier des PNJ (réglage `dossier_des_pnj`), au même format que celles de la [section 10](#10-créer-un-pnj) : vous pouvez ensuite la modifier avec un éditeur de texte. Pour changer l'exemple proposé, modifiez le fichier `agent_jdr/core/modele_pnj.yaml` (réglage `modele_de_pnj`).
+La fiche est enregistrée dans le dossier des PNJ (réglage `dossier_des_pnj`), au même format que celles de la [section 10](#10-créer-un-pnj) : vous pouvez ensuite la modifier depuis l'interface (ci-dessous) ou avec un éditeur de texte. Pour changer l'exemple proposé, modifiez le fichier `agent_jdr/core/modele_pnj.yaml` (réglage `modele_de_pnj`).
+
+### Onglet PNJ : modifier un PNJ
+
+Deux façons d'ouvrir la fiche d'un PNJ existant :
+
+- dans une session, le bouton **Modifier le PNJ** (en haut) ouvre la fiche du PNJ de cette session ;
+- dans la fenêtre **+ Nouvelle session**, choisissez le PNJ dans la liste, puis cliquez sur « Modifier le PNJ choisi ».
+
+Le formulaire est le même que pour la création, rempli avec la fiche actuelle. Corrigez ce que vous voulez, puis **Enregistrer les modifications**. La fiche est vérifiée de la même façon : un champ manquant ou incorrect est indiqué en rouge, et rien n'est enregistré.
+
+- L'**identifiant ne peut pas changer** : c'est le nom du fichier, et les sessions s'en servent pour retrouver le PNJ. Pour un autre identifiant, créez un PNJ en partant d'une « Copie de » celui-ci.
+- Les sessions existantes avec ce PNJ utilisent la nouvelle fiche **dès la réplique suivante** ; leurs échanges passés ne changent pas.
+- Le fichier de la fiche est **réécrit** à partir du formulaire : les **commentaires** (lignes commençant par `#`) que vous y aviez écrits à la main sont perdus. Si vous y tenez, gardez une copie du fichier avant de modifier la fiche depuis l'interface.
+
+### Onglet Livres
+
+Cet onglet liste les livres de règles en PDF du dossier des livres (réglage `dossier_des_pdf`), avec pour chacun le nombre de passages dans l'index et la taille du fichier.
+
+- **Cocher ou décocher** un livre choisit s'il est consulté par les questions de règles **et** par les PNJ. Le choix est enregistré tout de suite dans `config.yaml` (réglage `livres_utilises`, [section 9](#section-regles)) : il reste en place au prochain lancement, et vaut aussi pour `uv run search` et `uv run parler`. Inutile de reconstruire l'index.
+- **+ Ajouter un PDF** : choisissez un fichier PDF sur votre ordinateur. Il est copié dans le dossier des livres, puis l'index est reconstruit à partir de **tous** les PDF du dossier, puis le livre est coché. Comptez quelques secondes par livre déjà présent (une dizaine de secondes pour les deux livres de Metal Adventures), davantage pour un gros PDF : laissez la page ouverte jusqu'au message de fin. Le nom affiché dans les références est le nom du fichier sans `.pdf` (`Écran du meneur.pdf` → « Écran du meneur »).
+- **Reconstruire l'index** : relit tous les PDF du dossier. Utile si vous avez copié un PDF à la main dans le dossier, ou si l'index n'existe pas encore.
+
+Ce qui est refusé, sans rien modifier : un fichier qui n'est pas un PDF, un nom avec `/` ou `#`, un nom déjà présent dans le dossier (un livre n'est jamais remplacé), un fichier de plus de 500 Mo. Si l'index ne peut pas être reconstruit (PDF abîmé ou protégé), le PDF ajouté est retiré du dossier et l'ancien index reste en place.
+
+Messages dans la colonne « Passages indexés » :
+
+- `non indexé (reconstruisez l'index)` : le PDF est dans le dossier mais pas dans l'index. Cliquez sur **Reconstruire l'index**.
+- `0 (aucun texte : PDF scanné ?)` : le PDF ne contient que des images, l'assistant n'y trouvera rien.
+- `fichier absent du dossier` : le livre est coché dans `config.yaml` mais son PDF n'est plus dans le dossier. Décochez-le.
+
+Il n'est pas possible de retirer un PDF depuis l'interface : supprimez-le du dossier, puis cliquez sur **Reconstruire l'index** et décochez-le.
 
 ### Configuration (bouton ⚙)
 
@@ -336,15 +383,29 @@ Tous les réglages sont dans **un seul fichier** : `config.yaml`, à la racine d
 | `passages_envoyes` | Nombre de passages des livres envoyés au modèle pour chaque question. Entre 1 et 50. L'option `-n` le remplace pour une seule question. | `8` |
 | `consignes` | Les instructions pour répondre aux questions de règles. | texte fourni |
 
+### Section `regles`
+
+| Réglage | Rôle | Valeur fournie |
+|---|---|---|
+| `livres_utilises` | Les livres dans lesquels cherchent les questions de règles et les PNJ : des noms de fichiers PDF du dossier des livres, entre crochets, séparés par des virgules. `[]` = aucun livre. Se règle aussi en cochant les livres dans l'onglet **Livres** de l'interface web ([section 6](#onglet-livres)). | `["MA - Manuel des joueurs 1.5.pdf", "MA - Guide du Meneur 1.5.pdf"]` |
+
+Exemple pour ne consulter que le Manuel des joueurs :
+
+```yaml
+regles:
+  livres_utilises: ["MA - Manuel des joueurs 1.5.pdf"]
+```
+
 ### Section `fichiers`
 
 | Réglage | Rôle | Valeur fournie |
 |---|---|---|
 | `index_des_regles` | L'index créé à la [section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois). | `data/rules.db` |
 | `dossier_des_pnj` | Le dossier qui contient les fiches PNJ. | `agent_jdr/core/personas` |
-| `dossier_des_pdf` | Le dossier des livres PDF (utilisé seulement pour créer l'index). | `rules/MA - Manuel des joueurs 1.5` |
+| `dossier_des_pdf` | Le dossier des livres PDF, lu pour créer l'index ; l'onglet **Livres** y ajoute les PDF envoyés. | `rules/MA - Manuel des joueurs 1.5` |
 | `secrets` | Le fichier des clés API ([section 4](#4-les-clés-api-une-seule-fois)). | `secrets.yaml` |
 | `dossier_des_sessions` | Le dossier où l'interface web garde les sessions de dialogue et leur historique ([section 6](#onglet-pnj--les-sessions)). | `data/sessions` |
+| `historique_des_recherches` | Le dossier où l'interface web garde l'historique des questions de règles ([section 6](#onglet-règles)). | `data/historique` |
 | `catalogue_des_modeles` | La liste des modèles proposés par l'interface web, avec leur description et leur prix. | `modeles.yaml` |
 | `modele_de_pnj` | La fiche d'exemple qui pré-remplit le formulaire « Nouveau PNJ » de l'interface web. | `agent_jdr/core/modele_pnj.yaml` |
 
@@ -420,7 +481,7 @@ uv run parler orla-venn --lieu "Dock 7" --moment "Nuit" --pj Kael --config essai
 
 ## 10. Créer un PNJ
 
-Le plus simple est le formulaire de l'interface web, pré-rempli et vérifié à chaque champ ([section 6](#onglet-pnj--créer-un-pnj)). Cette section explique comment écrire une fiche à la main.
+Le plus simple est le formulaire de l'interface web, pré-rempli et vérifié à chaque champ ([section 6](#onglet-pnj--créer-un-pnj)) ; il permet aussi de modifier une fiche existante ([section 6](#onglet-pnj--modifier-un-pnj)). Cette section explique comment écrire une fiche à la main.
 
 Chaque PNJ est un fichier texte `.yaml` dans le dossier `agent_jdr/core/personas/` (réglage `dossier_des_pnj`). Pour en écrire une à la main, **copiez la fiche d'exemple** et modifiez-la :
 
@@ -491,7 +552,11 @@ Le coût réel d'une partie n'a pas encore été mesuré. Pour le suivre, consul
 | `Erreur : API Anthropic : …` ou `Erreur : API OpenAI : …` mentionnant le modèle (`model`) | Nom de modèle mal écrit ou inexistant dans `config.yaml`. | Recopiez un nom exact du [tableau des modèles](#choisir-le-fournisseur-et-le-modèle). |
 | `… : le modèle « … » n'est pas un modèle Anthropic …` ou `… est un modèle Anthropic, pas OpenAI …` | `fournisseur` et `modele` ne correspondent pas dans une section de `config.yaml`. | Mettez un modèle du bon fournisseur, ou changez le fournisseur. |
 | `Erreur : Index des règles absent : … Le construire avec : …` | L'index n'a pas été créé, ou `index_des_regles` pointe au mauvais endroit. | [Section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois). |
-| Un long message qui se termine par `FileNotFoundError: PDF de règles introuvable : …` | Lors de la création de l'index, un PDF manque ou porte un autre nom. | Vérifiez l'emplacement et les noms exacts des PDF ([section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois)). |
+| `Erreur : aucun PDF lisible dans …` | Lors de la création de l'index, le dossier des livres est vide, absent, ou ne contient que des PDF sans texte. | Vérifiez l'emplacement des PDF et le réglage `dossier_des_pdf` ([section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois)). |
+| `Erreur : PDF illisible : … (…)` (dans l'onglet Livres : `Reconstruction de l'index impossible : PDF illisible : …`) | Un PDF du dossier des livres est abîmé, incomplet ou protégé par un mot de passe. L'ancien index est conservé. | Retirez ce PDF du dossier (ou remplacez-le par une copie saine), puis reconstruisez l'index. |
+| `Erreur de configuration : config.yaml : réglages incorrects` suivi de `- regles : « … » : indiquez le nom d'un fichier PDF du dossier des livres …` | Un nom de `livres_utilises` ne finit pas par `.pdf`, ou contient un chemin de dossier. | Écrivez seulement le nom du fichier, par exemple `"Mon livre.pdf"` ([section 9](#section-regles)). |
+| Dans le navigateur : `Aucun livre de règles n'est coché : choisissez-en au moins un dans l'onglet Livres.` | Tous les livres sont décochés. | Onglet **Livres** : cochez au moins un livre. |
+| Dans l'onglet Livres : `Nom de fichier refusé : …`, `… n'est pas un fichier PDF.`, `Un fichier « … » existe déjà dans le dossier des livres.` | Le fichier envoyé a un nom avec `/` ou `#`, n'est pas un PDF, ou porte le nom d'un livre déjà présent. Rien n'a été ajouté. | Renommez le fichier sur votre ordinateur, puis ajoutez-le à nouveau. |
 | `Erreur : PNJ inconnu « … ». Disponibles : …` | Faute de frappe dans le nom du PNJ, ou fiche absente du dossier. | Utilisez un des noms listés après « Disponibles ». |
 | `Erreur : ….yaml : …` en lançant `parler` | Une fiche PNJ est mal remplie (même si ce n'est pas celle que vous lancez). | Corrigez le champ indiqué ([section 10](#10-créer-un-pnj)). |
 | `Erreur : configuration : config.yaml : réglages incorrects` suivi d'une liste | Un réglage de `config.yaml` est mal écrit. Chaque ligne donne la section, le réglage et le problème. | Voir les exemples ci-dessous, ou revenez à votre copie de sauvegarde. |
@@ -506,7 +571,7 @@ Le coût réel d'une partie n'a pas encore été mesuré. Pour le suivre, consul
 | Dans le navigateur : `… Saisissez la clé dans la fenêtre Config (bouton ⚙ en haut à droite).` | Aucune clé pour cet usage, ou clé refusée. | Bouton **⚙** : collez la clé de l'usage concerné et **Enregistrer** ([section 6](#configuration-bouton-)). |
 | Dans le navigateur : `Rien n'a été enregistré : …` | Le fichier `config.yaml` modifié, ou la clé saisie, contient une erreur. La suite du message indique laquelle. | Corrigez et enregistrez à nouveau ; le fichier n'a pas été touché. |
 | Dans le navigateur : `Modèle « … » absent du catalogue pour …` | Ce modèle n'est pas listé dans `modeles.yaml`. | Choisissez un modèle du menu, ou ajoutez-le à `modeles.yaml` ([section 9](#choisir-le-fournisseur-et-le-modèle)). |
-| Dans le formulaire « Nouveau PNJ » : `Fiche incomplète ou incorrecte : …`, et un message rouge sous des champs | Un champ obligatoire est vide, ou l'identifiant contient des majuscules, des accents ou des espaces. | Complétez les champs signalés. Si l'identifiant `existe déjà`, choisissez-en un autre. |
+| Dans le formulaire « Nouveau PNJ » ou « Modifier le PNJ » : `Fiche incomplète ou incorrecte : …`, et un message rouge sous des champs | Un champ obligatoire est vide, ou l'identifiant contient des majuscules, des accents ou des espaces. | Complétez les champs signalés. Si l'identifiant `existe déjà`, choisissez-en un autre. |
 | `Erreur : Trop de recherches de règles (4) sans réplique finale.` | Le PNJ a cherché dans les livres sans trouver de quoi répondre. | Reformulez, ou augmentez `recherches_max_par_replique`. |
 
 **Exemples de messages sur `config.yaml` :**

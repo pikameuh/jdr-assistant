@@ -22,9 +22,9 @@ def passages():
     dossier = charger_config().fichiers.dossier_des_pdf
     if not dossier.is_dir():
         pytest.skip(f"PDF de règles absents ({dossier})")
-    from agent_jdr.core.rules_extract import extraire_regles
+    from agent_jdr.core.rules_extract import LIVRES, extraire_regles
 
-    return extraire_regles(dossier)
+    return extraire_regles(dossier, LIVRES)  # seulement les deux livres, même si d'autres PDF ont été ajoutés
 
 
 @pytest.fixture(scope="module")
