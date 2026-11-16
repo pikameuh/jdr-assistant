@@ -1,0 +1,37 @@
+# =============================================================================
+#  Modèles proposés par l'interface web (menu « Modèle » de la fenêtre Config)
+# =============================================================================
+#  Une section par fournisseur. Pour proposer un nouveau modèle, ajoutez un bloc
+#  « - nom: … » sous son fournisseur (nom exact donné par le fournisseur).
+#  Les modèles Anthropic commencent par « claude- ».
+#  Prix par million de jetons, entrée / sortie, relevés le 2026-11-16.
+#  Rangés du moins cher au plus cher.
+# =============================================================================
+
+anthropic:
+  - nom: claude-haiku-5-5
+    description: rapide et très économique
+    prix: 0,10 $ / 0,50 $
+  - nom: claude-sonnet-5-5
+    description: bon équilibre qualité / prix
+    prix: 2 $ / 10 $
+  - nom: claude-opus-5-5
+    description: le plus soigné de la gamme Opus
+    prix: 4 $ / 20 $
+  - nom: claude-opus-4-8
+    description: génération précédente d'Opus
+    prix: 5 $ / 25 $
+
+openai:
+  - nom: gpt-6-luna
+    description: économique, gros volumes
+    prix: 0,10 $ / 0,50 $
+  - nom: gpt-6.1-terra
+    description: rapide et efficace
+    prix: 1 $ / 5 $
+  - nom: gpt-6.1-sol
+    description: équilibre intelligence / coût
+    prix: 2 $ / 10 $
+  - nom: gpt-6-astra
+    description: le plus puissant d'OpenAI
+    prix: 10 $ / 50 $

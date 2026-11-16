@@ -9,12 +9,13 @@ Assistant du meneur pour **Metal Adventures 1.5**. Ce manuel s'adresse à une pe
 3. [Installation (une seule fois)](#3-installation-une-seule-fois)
 4. [Les clés API (une seule fois)](#4-les-clés-api-une-seule-fois)
 5. [Les livres de règles et l'index (une seule fois)](#5-les-livres-de-règles-et-lindex-une-seule-fois)
-6. [Parler à un PNJ](#6-parler-à-un-pnj)
-7. [Poser une question de règles](#7-poser-une-question-de-règles)
-8. [Régler l'assistant : le fichier config.yaml](#8-régler-lassistant--le-fichier-configyaml)
-9. [Créer un PNJ](#9-créer-un-pnj)
-10. [Combien ça coûte](#10-combien-ça-coûte)
-11. [En cas de problème](#11-en-cas-de-problème)
+6. [L'interface web](#6-linterface-web)
+7. [Parler à un PNJ](#7-parler-à-un-pnj)
+8. [Poser une question de règles](#8-poser-une-question-de-règles)
+9. [Régler l'assistant : le fichier config.yaml](#9-régler-lassistant--le-fichier-configyaml)
+10. [Créer un PNJ](#10-créer-un-pnj)
+11. [Combien ça coûte](#11-combien-ça-coûte)
+12. [En cas de problème](#12-en-cas-de-problème)
 
 ---
 
@@ -24,7 +25,9 @@ Pendant une partie, l'assistant joue les **personnages non joueurs (PNJ)** à vo
 
 L'assistant répond aussi aux **questions de règles** (« comment fonctionne la dispersion d'une grenade ? »), en citant les passages exacts des livres.
 
-Les réponses sont rédigées par un modèle d'intelligence artificielle interrogé par Internet. Deux **fournisseurs** sont possibles : **Anthropic** (modèles Claude) et **OpenAI** (modèles GPT). Vous choisissez dans la configuration lequel joue les PNJ et lequel répond aux questions de règles ; ce peut être le même ou deux différents (voir [section 8](#8-régler-lassistant--le-fichier-configyaml)). Chaque réponse est payante (voir [section 10](#10-combien-ça-coûte)).
+Tout se fait au choix dans le **navigateur** (l'interface web, [section 6](#6-linterface-web), la plus simple) ou dans le **terminal** (sections 7 et 8).
+
+Les réponses sont rédigées par un modèle d'intelligence artificielle interrogé par Internet. Deux **fournisseurs** sont possibles : **Anthropic** (modèles Claude) et **OpenAI** (modèles GPT). Vous choisissez dans la configuration lequel joue les PNJ et lequel répond aux questions de règles ; ce peut être le même ou deux différents (voir [section 9](#9-régler-lassistant--le-fichier-configyaml)). Chaque réponse est payante (voir [section 11](#11-combien-ça-coûte)).
 
 ## 2. Ce qu'il faut avant de commencer
 
@@ -86,6 +89,8 @@ Les clés se rangent dans un fichier propre au projet, **`secrets.yaml`**, à c�
 
 Avec la configuration fournie, les deux usages passent par Anthropic : mettez la même clé Anthropic dans les deux entrées.
 
+**Le plus simple : l'interface web.** Une fois la clé créée (étape 1), lancez l'interface ([section 6](#6-linterface-web)), cliquez sur **⚙** en haut à droite et collez la clé dans « Nouvelle clé API » de chaque usage, puis **Enregistrer**. Le fichier `secrets.yaml` est créé ou mis à jour pour vous : les étapes 2 et 3 ci-dessous sont alors inutiles.
+
 ### Étape 1 : créer la clé
 
 **Clé Anthropic :**
@@ -128,7 +133,7 @@ Enregistrez. Gardez les guillemets, ne changez pas les noms des entrées, et ne 
 uv run search "faire le plein"
 ```
 
-Si une réponse s'affiche, la clé `recherche-apikey` fonctionne (comme toute réponse du modèle, cette question est payante). Pour `personas-apikey`, lancez une conversation ([section 6](#6-parler-à-un-pnj)). En cas de message d'erreur, voir la [section 11](#11-en-cas-de-problème).
+Si une réponse s'affiche, la clé `recherche-apikey` fonctionne (comme toute réponse du modèle, cette question est payante). Pour `personas-apikey`, lancez une conversation ([section 7](#7-parler-à-un-pnj)). En cas de message d'erreur, voir la [section 12](#12-en-cas-de-problème).
 
 ### Remplacer ou retirer une clé
 
@@ -136,7 +141,7 @@ Remplacez la clé dans `secrets.yaml` et enregistrez : elle sert dès la command
 
 **Ancienne méthode, toujours acceptée.** Une entrée laissée vide (`""`) ou un fichier `secrets.yaml` absent : l'assistant cherche alors la clé dans la variable d'environnement du fournisseur (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`), comme dans les versions précédentes. Une clé écrite dans `secrets.yaml` est prioritaire. Si vous passez au fichier, vous pouvez retirer la ligne `export …_API_KEY=…` de votre `~/.zshrc` (ou `~/.bashrc`).
 
-**Emplacement du fichier.** Le réglage `secrets` de la section `fichiers` de `config.yaml` indique où se trouve le fichier ([section 8](#section-fichiers)). Si vous le déplacez hors du dossier du projet, assurez-vous de ne jamais le partager.
+**Emplacement du fichier.** Le réglage `secrets` de la section `fichiers` de `config.yaml` indique où se trouve le fichier ([section 9](#section-fichiers)). Si vous le déplacez hors du dossier du projet, assurez-vous de ne jamais le partager.
 
 ## 5. Les livres de règles et l'index (une seule fois)
 
@@ -157,7 +162,83 @@ Cela prend quelques secondes et se termine par une ligne comme `2171 passages in
 
 Vous n'aurez à refaire cette étape que si les PDF changent ou si l'équipe vous le demande après une mise à jour.
 
-## 6. Parler à un PNJ
+## 6. L'interface web
+
+L'interface web regroupe tout dans une page de votre navigateur : questions de règles, dialogue avec les PNJ (avec historique sauvegardé), création de PNJ, réglages, clés API et ce manuel. Elle tourne sur votre ordinateur ; elle n'est pas accessible depuis Internet.
+
+### Lancer l'interface
+
+```sh
+uv run web
+```
+
+Le navigateur s'ouvre tout seul sur la page `http://127.0.0.1:8000`. S'il ne s'ouvre pas, copiez cette adresse dans votre navigateur. Le terminal affiche `Interface web : http://127.0.0.1:8000  (Ctrl+C pour arrêter)` : **laissez-le ouvert** pendant toute la partie. Pour arrêter l'interface, revenez dans le terminal et appuyez sur **Ctrl+C**.
+
+| Option | Effet |
+|---|---|
+| `--port 8001` | Utilise un autre port, si le 8000 est déjà pris (l'adresse devient `http://127.0.0.1:8001`). |
+| `--sans-navigateur` | N'ouvre pas le navigateur automatiquement. |
+| `--config essai.yaml` | Utilise un autre fichier de configuration ([section 9](#essayer-un-réglage-sans-toucher-au-fichier-principal)). |
+| `--hote 0.0.0.0` | Rend l'interface accessible aux autres appareils du réseau local (une tablette à la table, par exemple). **Sans mot de passe** : toute personne du réseau pourrait modifier vos réglages et utiliser vos clés. À éviter sur un réseau public. |
+
+En haut de la page : les onglets **Règles** et **PNJ**, puis deux boutons à droite : **?** ouvre ce manuel, **⚙** ouvre la configuration.
+
+### Onglet Règles
+
+Tapez votre question, puis **Expliquer** (ou la touche **Entrée** ; **Maj+Entrée** passe à la ligne). La réponse s'affiche avec des renvois `[1]`, `[2]` : cliquez sur un renvoi pour aller à sa source (livre, page, section, extrait exact). « Voir le passage complet » déplie le passage du livre. Les réponses s'empilent, la plus récente en haut.
+
+- **Passages seulement** : liste les passages trouvés dans les livres, sans interroger le modèle (gratuit), comme `--brut` en terminal.
+- **Passages des livres** : combien de passages envoyer au modèle pour cette question (comme `-n`). Laissé vide : le réglage `passages_envoyes` de la configuration.
+
+### Onglet PNJ : les sessions
+
+Une **session** est une conversation entre un PNJ et un personnage joueur, dans une scène. Elle est **sauvegardée** : vous pouvez fermer le navigateur, arrêter l'interface, et la reprendre plus tard là où vous l'aviez laissée.
+
+1. Cliquez sur **+ Nouvelle session**, choisissez le PNJ, le nom du PJ qui parle, le lieu et le moment (l'ambiance et les enjeux sont facultatifs), puis **Créer**.
+2. Tapez la réplique du PJ en bas, puis **Entrée** (ou **Envoyer**). La réponse du PNJ s'affiche quand le modèle a terminé. Sous la réponse, « Règles consultées » indique les pages lues par le PNJ, s'il en a lu.
+3. **Scène & faits** affiche la scène et permet d'**ajouter un fait** (l'équivalent de `/fait`), par exemple « Kael pose une pile ouverte sur le comptoir ».
+
+La liste à gauche montre toutes les sessions, la plus récente en haut ; cliquez sur une session pour la reprendre.
+
+- **Effacer l'historique** : efface tous les échanges de la session, mais garde le PNJ, le PJ, la scène et les faits. Pratique pour rejouer une scène depuis le début.
+- **Supprimer** : supprime la session entière. Une confirmation est demandée ; c'est définitif.
+
+Si une réponse échoue (clé absente, refus du modèle, coupure réseau), un message rouge s'affiche dans la conversation, le tour **n'est pas enregistré** et votre texte est remis dans la zone de saisie : corrigez le problème ou reformulez, puis renvoyez.
+
+Les sessions sont rangées dans le dossier `data/sessions` (réglage `dossier_des_sessions`), un fichier par session.
+
+### Onglet PNJ : créer un PNJ
+
+Cliquez sur **+ Nouveau PNJ** (ou sur « Créer un PNJ » dans la fenêtre de nouvelle session). Un formulaire s'ouvre, **déjà rempli avec un exemple** (le capitaine Rook) pour vous guider : remplacez chaque texte par celui de votre PNJ.
+
+- **Partir de** : « Modèle guidé » (l'exemple), « Fiche vierge », ou « Copie de » un PNJ existant, pratique pour créer un PNJ proche d'un autre (le nom est alors à saisir).
+- Les champs encore **identiques au point de départ sont surlignés** en jaune. Si vous en laissez, l'interface vous le signale avant de créer le PNJ.
+- L'**identifiant** se remplit tout seul d'après le nom (`Zéphyr Malo` → `zephyr-malo`) ; c'est le nom du fichier de la fiche. Vous pouvez le modifier.
+- Les listes (tics, exemples de répliques, objectifs, connaissances) : **+ Ajouter** ajoute une ligne, **✕** la retire ; les lignes laissées vides sont ignorées. Il faut au moins un objectif.
+- **Secrets** : chaque secret a une condition de révélation. **Laissée vide, le PNJ ne révèle jamais ce secret.**
+
+**Créer le PNJ** vérifie la fiche : un champ manquant ou incorrect est indiqué en rouge sous le champ, et rien n'est enregistré. Un PNJ qui existe déjà n'est jamais écrasé (choisissez un autre identifiant). Une fois le PNJ créé, la fenêtre de nouvelle session s'ouvre avec ce PNJ déjà choisi.
+
+La fiche est enregistrée dans le dossier des PNJ (réglage `dossier_des_pnj`), au même format que celles de la [section 10](#10-créer-un-pnj) : vous pouvez ensuite la modifier avec un éditeur de texte. Pour changer l'exemple proposé, modifiez le fichier `agent_jdr/core/modele_pnj.yaml` (réglage `modele_de_pnj`).
+
+### Configuration (bouton ⚙)
+
+**Onglet « Modèles et clés API »** : une carte par usage, « Questions de règles » et « Dialogue avec les PNJ ». Pour chacun :
+
+- **Fournisseur** et **Modèle** : menus déroulants. La liste des modèles, avec leur description et leur prix, vient du fichier `modeles.yaml` ([section 9](#choisir-le-fournisseur-et-le-modèle)).
+- **Clé API actuelle** : affichée en partie masquée (par exemple `sk-an***AB`), jamais en entier. L'étiquette indique d'où elle vient : « fichier de secrets », le nom de la variable d'environnement (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`), ou « aucune clé ».
+- **Nouvelle clé API** : collez une clé pour la remplacer ; laissez vide pour garder l'actuelle. **Effacer la clé** la retire du fichier de secrets.
+- **Enregistrer** : écrit le fournisseur et le modèle dans `config.yaml` (les commentaires du fichier sont conservés) et la clé dans `secrets.yaml`.
+
+Si vous changez de fournisseur, saisissez aussi la clé de ce fournisseur : une clé Anthropic ne fonctionne pas chez OpenAI, et inversement.
+
+**Onglet « Fichier config.yaml »** : le fichier complet, modifiable comme dans un éditeur de texte ([section 9](#9-régler-lassistant--le-fichier-configyaml)). La touche Tabulation y insère deux espaces. **Enregistrer le fichier** vérifie tout le fichier avant de l'écrire : en cas d'erreur, le message indique le réglage en cause et **rien n'est modifié**. **Annuler les modifications** revient au fichier enregistré.
+
+Les changements faits depuis l'interface s'appliquent **tout de suite**, sans relancer `uv run web`. Si vous modifiez `config.yaml` à la main pendant que l'interface tourne, c'est pareil : la question ou la réplique suivante utilise le nouveau réglage.
+
+## 7. Parler à un PNJ
+
+Cette section décrit la commande à taper dans le terminal. Dans le navigateur, voir la [section 6](#onglet-pnj--les-sessions).
 
 ```sh
 uv run parler orla-venn --lieu "Dock 7" --moment "Cycle de nuit" --pj Kael
@@ -165,7 +246,7 @@ uv run parler orla-venn --lieu "Dock 7" --moment "Cycle de nuit" --pj Kael
 
 | Élément | Signification |
 |---|---|
-| `orla-venn` | Le PNJ à jouer : nom de sa fiche, sans `.yaml` (voir [section 9](#9-créer-un-pnj)). Orla Venn est le PNJ d'exemple fourni. |
+| `orla-venn` | Le PNJ à jouer : nom de sa fiche, sans `.yaml` (voir [section 10](#10-créer-un-pnj)). Orla Venn est le PNJ d'exemple fourni. |
 | `--lieu "…"` | Où se passe la scène. **Obligatoire.** |
 | `--moment "…"` | Quand. **Obligatoire.** |
 | `--pj …` | Le nom du personnage joueur qui parle. **Obligatoire.** |
@@ -195,9 +276,9 @@ Kael >
 
 **Si une réponse échoue** (refus du modèle, coupure réseau), un message `Erreur : … (tour non enregistré)` s'affiche et la conversation continue : reformulez simplement.
 
-**La conversation n'est pas sauvegardée.** Quand vous quittez, le PNJ oublie tout.
+**La conversation n'est pas sauvegardée.** Quand vous quittez, le PNJ oublie tout. Pour garder l'historique d'une conversation, utilisez l'interface web ([section 6](#onglet-pnj--les-sessions)).
 
-## 7. Poser une question de règles
+## 8. Poser une question de règles
 
 ```sh
 uv run search "expliques moi la dispersion d'une grenade"
@@ -219,9 +300,9 @@ uv run search "faire le plein" --brut
 
 Astuce : la recherche porte sur les mots exacts des livres. Écrivez les termes en toutes lettres : « points de panache » plutôt que « PP ».
 
-## 8. Régler l'assistant : le fichier config.yaml
+## 9. Régler l'assistant : le fichier config.yaml
 
-Tous les réglages sont dans **un seul fichier** : `config.yaml`, à la racine du dossier du projet. Ouvrez-le avec un éditeur de texte simple (TextEdit en mode texte brut sous macOS, Éditeur de texte sous Linux), modifiez, enregistrez, puis relancez la commande : le changement est pris en compte.
+Tous les réglages sont dans **un seul fichier** : `config.yaml`, à la racine du dossier du projet. Ouvrez-le avec un éditeur de texte simple (TextEdit en mode texte brut sous macOS, Éditeur de texte sous Linux), modifiez, enregistrez, puis relancez la commande : le changement est pris en compte. Vous pouvez aussi le modifier depuis l'interface web (bouton **⚙**, [section 6](#configuration-bouton-)).
 
 **Avant toute modification, faites une copie de sauvegarde** du fichier, par exemple `config.yaml.sauvegarde`, pour pouvoir revenir en arrière.
 
@@ -230,7 +311,7 @@ Tous les réglages sont dans **un seul fichier** : `config.yaml`, à la racine d
 - Modifiez seulement ce qui se trouve **après les deux-points**.
 - **Ne touchez pas aux espaces en début de ligne** : ils indiquent à quelle section appartient un réglage. Utilisez des espaces, jamais la touche Tabulation.
 - Les lignes qui commencent par `#` sont des commentaires et sont ignorées.
-- Si vous faites une erreur, la commande refuse de démarrer et indique le réglage en cause (voir [section 11](#11-en-cas-de-problème)).
+- Si vous faites une erreur, la commande refuse de démarrer et indique le réglage en cause (voir [section 12](#12-en-cas-de-problème)).
 
 ### Section `dialogue` (commande `uv run parler`)
 
@@ -263,12 +344,17 @@ Tous les réglages sont dans **un seul fichier** : `config.yaml`, à la racine d
 | `dossier_des_pnj` | Le dossier qui contient les fiches PNJ. | `agent_jdr/core/personas` |
 | `dossier_des_pdf` | Le dossier des livres PDF (utilisé seulement pour créer l'index). | `rules/MA - Manuel des joueurs 1.5` |
 | `secrets` | Le fichier des clés API ([section 4](#4-les-clés-api-une-seule-fois)). | `secrets.yaml` |
+| `dossier_des_sessions` | Le dossier où l'interface web garde les sessions de dialogue et leur historique ([section 6](#onglet-pnj--les-sessions)). | `data/sessions` |
+| `catalogue_des_modeles` | La liste des modèles proposés par l'interface web, avec leur description et leur prix. | `modeles.yaml` |
+| `modele_de_pnj` | La fiche d'exemple qui pré-remplit le formulaire « Nouveau PNJ » de l'interface web. | `agent_jdr/core/modele_pnj.yaml` |
 
 Les chemins sont relatifs au dossier qui contient `config.yaml`. Un chemin commençant par `/` est un chemin complet.
 
 ### Choisir le fournisseur et le modèle
 
 Chaque section (`dialogue`, `questions_de_regles`) a son propre `fournisseur` et son propre `modele`. Le modèle doit appartenir au fournisseur : un modèle Anthropic commence toujours par `claude-`, un modèle OpenAI jamais. Sinon, la commande refuse de démarrer et le signale.
+
+Les modèles disponibles sont listés dans le fichier **`modeles.yaml`**, à la racine du projet. C'est la liste que propose l'interface web. Pour proposer un nouveau modèle dans l'interface, ajoutez un bloc `- nom: …` (avec `description` et `prix` si vous voulez) sous son fournisseur ; l'interface refuse un modèle absent de cette liste. Dans `config.yaml` modifié à la main, tout nom de modèle du bon fournisseur est accepté.
 
 Modèles Anthropic (`fournisseur: anthropic`) :
 
@@ -332,9 +418,11 @@ uv run parler orla-venn --lieu "Dock 7" --moment "Nuit" --pj Kael --config essai
 
 `--config` fonctionne aussi avec `uv run search`.
 
-## 9. Créer un PNJ
+## 10. Créer un PNJ
 
-Chaque PNJ est un fichier texte `.yaml` dans le dossier `agent_jdr/core/personas/` (réglage `dossier_des_pnj`). Le plus simple est de **copier la fiche d'exemple** et de la modifier :
+Le plus simple est le formulaire de l'interface web, pré-rempli et vérifié à chaque champ ([section 6](#onglet-pnj--créer-un-pnj)). Cette section explique comment écrire une fiche à la main.
+
+Chaque PNJ est un fichier texte `.yaml` dans le dossier `agent_jdr/core/personas/` (réglage `dossier_des_pnj`). Pour en écrire une à la main, **copiez la fiche d'exemple** et modifiez-la :
 
 ```sh
 cp agent_jdr/core/personas/orla-venn.yaml agent_jdr/core/personas/capitaine-rook.yaml
@@ -377,9 +465,9 @@ Puis jouez-le :
 uv run parler capitaine-rook --lieu "Passerelle" --moment "Avant le saut" --pj Kael
 ```
 
-## 10. Combien ça coûte
+## 11. Combien ça coûte
 
-Chaque réplique d'un PNJ et chaque question de règles est facturée sur votre compte chez le fournisseur choisi (Anthropic ou OpenAI), selon le nombre de **jetons** envoyés et reçus (voir les prix à la [section 8](#choisir-le-fournisseur-et-le-modèle)). Ce qui fait grimper la note :
+Chaque réplique d'un PNJ et chaque question de règles est facturée sur votre compte chez le fournisseur choisi (Anthropic ou OpenAI), selon le nombre de **jetons** envoyés et reçus (voir les prix à la [section 9](#choisir-le-fournisseur-et-le-modèle)). Ce qui fait grimper la note :
 
 - **le modèle** : c'est le premier levier ; par exemple, `claude-sonnet-5-5` et `gpt-6.1-sol` coûtent 5 fois moins que `gpt-6-astra`, et `claude-haiku-5-5` ou `gpt-6-luna` 100 fois moins ;
 - **la longueur de la conversation** : à chaque réplique, toute la conversation depuis le début est renvoyée ; une très longue conversation coûte plus cher par réplique (les deux fournisseurs gardent en cache le début de la conversation, ce qui doit réduire ce coût ; l'économie réelle n'a pas encore été mesurée) ;
@@ -388,9 +476,9 @@ Chaque réplique d'un PNJ et chaque question de règles est facturée sur votre 
 
 Le coût réel d'une partie n'a pas encore été mesuré. Pour le suivre, consultez les pages d'utilisation de la console Anthropic (<https://console.anthropic.com>) et de la plateforme OpenAI (<https://platform.openai.com>).
 
-`uv run search "…" --brut` et la vérification des fiches PNJ sont gratuits : ils n'interrogent aucun modèle.
+`uv run search "…" --brut`, le bouton **Passages seulement** de l'interface web, la création de PNJ et la vérification des fiches PNJ sont gratuits : ils n'interrogent aucun modèle.
 
-## 11. En cas de problème
+## 12. En cas de problème
 
 | Message affiché | Cause | Solution |
 |---|---|---|
@@ -405,13 +493,20 @@ Le coût réel d'une partie n'a pas encore été mesuré. Pour le suivre, consul
 | `Erreur : Index des règles absent : … Le construire avec : …` | L'index n'a pas été créé, ou `index_des_regles` pointe au mauvais endroit. | [Section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois). |
 | Un long message qui se termine par `FileNotFoundError: PDF de règles introuvable : …` | Lors de la création de l'index, un PDF manque ou porte un autre nom. | Vérifiez l'emplacement et les noms exacts des PDF ([section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois)). |
 | `Erreur : PNJ inconnu « … ». Disponibles : …` | Faute de frappe dans le nom du PNJ, ou fiche absente du dossier. | Utilisez un des noms listés après « Disponibles ». |
-| `Erreur : ….yaml : …` en lançant `parler` | Une fiche PNJ est mal remplie (même si ce n'est pas celle que vous lancez). | Corrigez le champ indiqué ([section 9](#9-créer-un-pnj)). |
+| `Erreur : ….yaml : …` en lançant `parler` | Une fiche PNJ est mal remplie (même si ce n'est pas celle que vous lancez). | Corrigez le champ indiqué ([section 10](#10-créer-un-pnj)). |
 | `Erreur : configuration : config.yaml : réglages incorrects` suivi d'une liste | Un réglage de `config.yaml` est mal écrit. Chaque ligne donne la section, le réglage et le problème. | Voir les exemples ci-dessous, ou revenez à votre copie de sauvegarde. |
 | `Erreur : configuration : config.yaml : syntaxe YAML incorrecte` | Décalage d'espaces cassé, tabulation, ou guillemet non fermé. Le message indique la ligne (`line`) et la colonne (`column`). | Corrigez la ligne indiquée, ou revenez à votre copie de sauvegarde. |
 | `parler: error: the following arguments are required: …` | Il manque un élément obligatoire de la commande. | Ajoutez ceux qui sont listés (`--lieu`, `--moment`, `--pj`, le nom du PNJ). |
 | `Erreur : Le modèle a refusé de répondre.` | Le modèle a refusé de répondre (en partie : `(tour non enregistré …)`). | Reformulez. |
 | `Erreur : Réponse tronquée : limite de longueur atteinte.` | La réponse dépassait `longueur_max_reponse`. | Augmentez ce réglage (OpenAI recommande de prévoir large pour ses modèles qui réfléchissent). |
 | `Erreur : Réponse du modèle mal formée (JSON attendu).` | Avec OpenAI, la réponse à une question de règles n'avait pas le format imposé. | Relancez la question. |
+| `Erreur : le port 8000 est déjà utilisé …` (avec `uv run web`) | L'interface est déjà lancée dans un autre terminal, ou un autre programme utilise ce port. | Utilisez l'interface déjà ouverte, ou lancez `uv run web --port 8001`. |
+| Dans le navigateur : `Serveur injoignable. La commande « uv run web » est-elle toujours lancée ?` | Le terminal de l'interface a été fermé, ou Ctrl+C a été pressé. | Relancez `uv run web` et rechargez la page. |
+| Dans le navigateur : `Configuration invalide (corrigez-la dans la fenêtre Config) : …` | `config.yaml` contient une erreur (le message indique laquelle). | Bouton **⚙**, onglet « Fichier config.yaml » : corrigez et enregistrez. |
+| Dans le navigateur : `… Saisissez la clé dans la fenêtre Config (bouton ⚙ en haut à droite).` | Aucune clé pour cet usage, ou clé refusée. | Bouton **⚙** : collez la clé de l'usage concerné et **Enregistrer** ([section 6](#configuration-bouton-)). |
+| Dans le navigateur : `Rien n'a été enregistré : …` | Le fichier `config.yaml` modifié, ou la clé saisie, contient une erreur. La suite du message indique laquelle. | Corrigez et enregistrez à nouveau ; le fichier n'a pas été touché. |
+| Dans le navigateur : `Modèle « … » absent du catalogue pour …` | Ce modèle n'est pas listé dans `modeles.yaml`. | Choisissez un modèle du menu, ou ajoutez-le à `modeles.yaml` ([section 9](#choisir-le-fournisseur-et-le-modèle)). |
+| Dans le formulaire « Nouveau PNJ » : `Fiche incomplète ou incorrecte : …`, et un message rouge sous des champs | Un champ obligatoire est vide, ou l'identifiant contient des majuscules, des accents ou des espaces. | Complétez les champs signalés. Si l'identifiant `existe déjà`, choisissez-en un autre. |
 | `Erreur : Trop de recherches de règles (4) sans réplique finale.` | Le PNJ a cherché dans les livres sans trouver de quoi répondre. | Reformulez, ou augmentez `recherches_max_par_replique`. |
 
 **Exemples de messages sur `config.yaml` :**
@@ -434,7 +529,7 @@ Choisissez une des valeurs proposées, sans accent.
 ```
   - questions_de_regles > passages_envoyes : doit être au moins 1
 ```
-La valeur est hors des limites indiquées dans les tableaux de la [section 8](#8-régler-lassistant--le-fichier-configyaml).
+La valeur est hors des limites indiquées dans les tableaux de la [section 9](#9-régler-lassistant--le-fichier-configyaml).
 
 **Revenir au réglage d'origine.** Si vous n'avez pas fait de copie de sauvegarde et que le dossier du projet est suivi par git, cette commande remet `config.yaml` dans son état d'origine (vos modifications de ce fichier sont perdues) :
 

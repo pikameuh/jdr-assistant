@@ -14,18 +14,8 @@
 #  Les clés API ne sont pas ici : elles vont dans le fichier de secrets
 #  (réglage « secrets » en bas de ce fichier ; voir MANUEL.md, section 4).
 #
-#  Modèles possibles, du moins cher au plus cher
-#  (prix par million de jetons, entrée / sortie, relevés le 2026-11-16) :
-#    fournisseur: anthropic
-#      claude-haiku-5-5    0,10 $ / 0,50 $   rapide et très économique
-#      claude-sonnet-5-5   2 $ / 10 $        bon équilibre qualité / prix
-#      claude-opus-5-5     4 $ / 20 $        le plus soigné de la gamme Opus
-#      claude-opus-4-8     5 $ / 25 $        génération précédente d'Opus
-#    fournisseur: openai
-#      gpt-6-luna          0,10 $ / 0,50 $   économique, gros volumes
-#      gpt-6.1-terra       1 $ / 5 $         rapide et efficace
-#      gpt-6.1-sol         2 $ / 10 $        équilibre intelligence / coût
-#      gpt-6-astra         10 $ / 50 $       le plus puissant d'OpenAI
+#  Modèles possibles : voir le fichier modeles.yaml (liste, description et
+#  prix de chaque modèle ; c'est aussi la liste proposée par l'interface web).
 #  Le nom du modèle doit correspondre au fournisseur choisi.
 #
 #  Niveau de réflexion : combien le modèle réfléchit avant de répondre.
@@ -101,3 +91,9 @@ fichiers:
   dossier_des_pdf: rules/MA - Manuel des joueurs 1.5
   # Fichier des clés API (jamais envoyé sur git ; modèle : secrets.exemple.yaml)
   secrets: secrets.yaml
+  # Dossier où l'interface web garde les sessions de dialogue (historique des échanges)
+  dossier_des_sessions: data/sessions
+  # Liste des modèles proposés par l'interface web, par fournisseur
+  catalogue_des_modeles: modeles.yaml
+  # Fiche pré-remplie proposée quand on crée un PNJ depuis l'interface web
+  modele_de_pnj: agent_jdr/core/modele_pnj.yaml

@@ -14,14 +14,15 @@ Vérifier le manuel si la modification touche l'un de ces points (section du man
 | Changement | Section de `MANUEL.md` |
 |---|---|
 | Prérequis, installation, `uv sync`, dépendances | 2, 3 |
-| Clés API, `secrets.yaml`, `secrets.exemple.yaml`, variables d'environnement | 4 |
+| Clés API, `secrets.yaml`, `secrets.exemple.yaml`, variables d'environnement | 4 (et 6 si l'interface web les affiche) |
 | PDF des règles, `rules_index build`, `data/rules.db` | 5 |
-| Commande `parler` : options, commandes en partie (`/fait`, `/quitter`…), affichage | 6 |
-| Commande `search` : options (`-n`, `--brut`…), affichage des sources | 7 |
-| `config.yaml` : réglage ajouté, renommé, retiré, valeurs admises, fournisseurs, modèles, consignes, `--config` | 8 |
-| Schéma des fiches PNJ (`core/persona.py`, `core/personas/`) | 9 |
-| Modèle par défaut, nombre d'appels, cache, tarifs | 10 |
-| Message d'erreur ajouté, modifié ou corrigé ; anomalie connue résolue | 11 |
+| Interface web (`uv run web`, `interfaces/web/`) : options, onglets, sessions, création de PNJ, fenêtre Config, aide | 6 |
+| Commande `parler` : options, commandes en partie (`/fait`, `/quitter`…), affichage | 7 |
+| Commande `search` : options (`-n`, `--brut`…), affichage des sources | 8 |
+| `config.yaml` : réglage ajouté, renommé, retiré, valeurs admises, fournisseurs, modèles, `modeles.yaml`, consignes, `--config` | 9 |
+| Schéma des fiches PNJ (`core/persona.py`, `core/personas/`, `modele_pnj.yaml`) | 10 (et 6 pour le formulaire) |
+| Modèle par défaut, nombre d'appels, cache, tarifs | 11 |
+| Message d'erreur ajouté, modifié ou corrigé ; anomalie connue résolue | 12 |
 | Toute section ajoutée ou retirée | Sommaire |
 
 Ne demandent pas de mise à jour : refactorisation interne sans effet visible, tests, `PROGRESS.md`, `CLAUDE.md`.
@@ -37,6 +38,7 @@ En cas de doute, lire la section concernée et comparer avec le nouveau comporte
 5. Une ligne par paragraphe : ne jamais couper une ligne Markdown à une largeur de colonne.
 6. Mettre à jour le sommaire si une section est ajoutée, renommée ou retirée.
 7. Faire la mise à jour dans le même commit que la modification du code.
+8. Le manuel est aussi affiché par le bouton **?** de l'interface web : les liens internes `(#ancre)` doivent correspondre à un titre (le test `test_manuel_en_html_avec_ancres_du_sommaire` le vérifie).
 
 ## Compte rendu
 

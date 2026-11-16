@@ -33,6 +33,9 @@ CONFIG_TEST = Config.model_validate(
             "dossier_des_pnj": "/inexistant/personas",
             "dossier_des_pdf": "/inexistant/pdf",
             "secrets": "/inexistant/secrets.yaml",
+            "dossier_des_sessions": "/inexistant/sessions",
+            "catalogue_des_modeles": "/inexistant/modeles.yaml",
+            "modele_de_pnj": "/inexistant/modele_pnj.yaml",
         },
     }
 )

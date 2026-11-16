@@ -1,9 +1,9 @@
 # Avancement — Agent IA JDR
 
-**Dernière mise à jour : 2026-11-16**
+**Dernière mise à jour : 2026-11-16 (interface web)**
 
 ## Reprise rapide (lire en premier)
-Phases 0, 0.2, 1 et 2 terminées. **Toute la configuration est dans `config.yaml`**, dont le **fournisseur (`anthropic` ou `openai`) choisi séparément pour le dialogue et les questions de règles** (défaut : Anthropic, `claude-sonnet-5-5`). Cœur indépendant des SDK : `core/fournisseurs/` (interface commune, adaptateurs Anthropic Messages et OpenAI Responses). Règles : `data/rules.db` (FTS5), `uv run search "…"`. Fiches PNJ YAML (exemple `orla-venn`), scène, assembleur, moteur de dialogue, CLI `uv run parler …`. Manuel non-dev : `MANUEL.md`. **Clés API dans `secrets.yaml`** (ignoré par git ; modèle `secrets.exemple.yaml`), une par usage : `recherche-apikey`, `personas-apikey`. 234 tests passent (`uv run pytest`, couches 1–3). **Rien n'a encore tourné sur un vrai modèle, ni Anthropic ni OpenAI** (aucune clé sur la machine de dev). Prochaine étape : **Phase 3 — évals de dialogue**, sur plusieurs fournisseurs et modèles, pour choisir le moins cher qui tient.
+Phases 0, 0.2, 1 et 2 terminées. **Toute la configuration est dans `config.yaml`**, dont le **fournisseur (`anthropic` ou `openai`) choisi séparément pour le dialogue et les questions de règles** (défaut : Anthropic, `claude-sonnet-5-5`). Cœur indépendant des SDK : `core/fournisseurs/` (interface commune, adaptateurs Anthropic Messages et OpenAI Responses). Règles : `data/rules.db` (FTS5), `uv run search "…"`. Fiches PNJ YAML (exemple `orla-venn`), scène, assembleur, moteur de dialogue, CLI `uv run parler …`. Manuel non-dev : `MANUEL.md`. **Clés API dans `secrets.yaml`** (ignoré par git ; modèle `secrets.exemple.yaml`), une par usage : `recherche-apikey`, `personas-apikey`. **Interface web** : `uv run web` (FastAPI, `interfaces/web/`) — règles, sessions PNJ sauvegardées (`data/sessions/`), création de PNJ par formulaire pré-rempli, fenêtre Config (fournisseur/modèle depuis `modeles.yaml`, clés masquées, éditeur de `config.yaml`), aide = `MANUEL.md`. 303 tests passent (`uv run pytest`, couches 1–3). **Premier appel réel** : une réplique d'Orla via le web (Anthropic, Sonnet 5.5), correcte et tenant compte d'un fait ajouté ; OpenAI jamais essayé, coût et cache non mesurés. Prochaine étape : **Phase 3 — évals de dialogue**, sur plusieurs fournisseurs et modèles, pour choisir le moins cher qui tient.
 
 ## État par phase
 
@@ -41,6 +41,15 @@ Hors périmètre : boucle tool use (le modèle relance lui-même la recherche), 
 - [x] Prompt caching sur la partie stable : `cache_control` sur `system[0]` (consignes + persona) + cache automatique en fin de conversation. **Non mesuré** (pas de clé).
 - [x] Tests d'orchestration mockés (couche 3) : `tests/orchestration/test_dialogue_engine.py` (22 tests, moteur + CLI).
 - [x] Avancé depuis la phase 3 (demande utilisateur) : CLI `uv run parler` (`interfaces/cli.py`), commandes `/fait` et `/quitter`.
+
+### Phase 2.5 — Interface web (demande utilisateur, 2026-11-16)
+- [x] `uv run web` : serveur local FastAPI, page HTML/JS/CSS sans build ni CDN (`interfaces/web/static/`).
+- [x] Onglet Règles : réponse + renvois cliquables vers les sources ; « Passages seulement » (sans LLM).
+- [x] Onglet PNJ : sessions persistantes (`core/sessions.py`), reprise, ajout de faits, effacer l'historique, supprimer la session.
+- [x] Création de PNJ : formulaire pré-rempli (modèle guidé `core/modele_pnj.yaml`, fiche vierge ou copie d'un PNJ), champs inchangés surlignés, erreurs par champ en français, jamais d'écrasement.
+- [x] Bouton ? : `MANUEL.md` rendu en HTML (ancres GitHub, testées). Bouton ⚙ : fournisseur + modèle par usage (catalogue `modeles.yaml`), clés masquées (`sk-an***AB`), éditeur de `config.yaml` validé avant écriture.
+- [x] Tests : `test_web.py` (API, fournisseur mocké), `test_sessions.py`, `test_edition_config.py`, `test_creation_persona.py`.
+- [ ] Non fait : modifier ou supprimer un PNJ depuis le web ; streaming des réponses ; authentification (usage local seulement).
 
 ### Phase 3 — Évals + CLI
 - [ ] Jeu de scénarios d'évals (couche 4)
@@ -87,3 +96,5 @@ Hors périmètre : boucle tool use (le modèle relance lui-même la recherche), 
 - Persistance de l'état de scène pour le web (sérialisation + gestion de sessions).
 - Streaming des réponses (variante *stream* du moteur).
 - Éventuelle v2 vectorielle si la recherche FTS5 s'avère insuffisante.
+- **2026-11-16** — Interface web (demande utilisateur). FastAPI + uvicorn (routes synchrones : appels LLM bloquants dans le pool de threads) ; front en HTML/JS natif, sans build ni CDN, tout texte du modèle inséré en `textContent`. Configuration **toujours YAML** (`config.yaml`, la demande parlait de JSON) : l'éditeur montre le vrai fichier, commentaires compris ; le choix fournisseur/modèle remplace seulement les lignes concernées. Validation complète avant toute écriture, écriture atomique. Clés : jamais renvoyées en clair (5 premiers + `***` + 2 derniers), `secrets.yaml` créé depuis `secrets.exemple.yaml` en 0600. Catalogue des modèles sorti de `config.yaml` vers `modeles.yaml` (une seule liste). Nouveaux réglages `fichiers.dossier_des_sessions`, `catalogue_des_modeles`, `modele_de_pnj` (pas de valeur cachée dans le code). Sessions : un JSON par session, verrou par session, effacer l'historique garde scène et faits. Sécurité : écoute sur 127.0.0.1, `TrustedHostMiddleware` (anti DNS rebinding), avertissement si `--hote` non local. Manuel : nouvelle section 6, sections suivantes renumérotées (7 à 12).
+- **2026-11-16** — Création de PNJ depuis le web (demande utilisateur) : formulaire structuré (pas d'édition YAML brute), pré-rempli par `core/modele_pnj.yaml` ou par copie d'un PNJ (nom vidé). `persona.valider_fiche` : nettoyage des lignes vides, erreurs par champ en français (`FicheRefusee.erreurs`) ; `creer_fiche` ouvre en mode `x` (jamais d'écrasement). Messages de `charger_persona` inchangés (cités par le manuel).

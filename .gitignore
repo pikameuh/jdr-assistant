@@ -19,3 +19,4 @@ data/rules.db
 # (sources régénérables ; utiliser git-lfs si un versionnement est souhaité)
 rules/**/*.pdf
 rules/**/*.zip
+data/sessions/

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assistant du meneur — Metal Adventures 1.5</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="entete">
+    <div class="titre">
+      <span class="logo" aria-hidden="true">✦</span>
+      <span>Assistant du meneur</span>
+      <span class="sous-titre">Metal Adventures 1.5</span>
+    </div>
+    <nav class="onglets" role="tablist">
+      <button role="tab" class="onglet actif" data-vue="regles" aria-selected="true">Règles</button>
+      <button role="tab" class="onglet" data-vue="pnj" aria-selected="false">PNJ</button>
+    </nav>
+    <div class="actions-entete">
+      <button class="bouton-icone" id="btn-aide" title="Aide : manuel d'utilisation" aria-label="Aide">?</button>
+      <button class="bouton-icone" id="btn-config" title="Configuration : modèles, clés API, fichier config.yaml" aria-label="Configuration">⚙</button>
+    </div>
+  </header>
+
+  <!-- ================= Règles ================= -->
+  <main id="vue-regles" class="vue">
+    <section class="carte formulaire-question">
+      <form id="form-regles">
+        <label for="question" class="label-principal">Votre question de règles</label>
+        <textarea id="question" rows="2" placeholder="Ex. : explique-moi la dispersion d'une grenade" required></textarea>
+        <div class="ligne-actions">
+          <label class="petit">Passages des livres
+            <input type="number" id="nb-passages" min="1" max="50" placeholder="auto">
+          </label>
+          <span class="espace"></span>
+          <button type="button" id="btn-brut" class="secondaire" title="Liste les passages trouvés, sans appeler le modèle (gratuit)">Passages seulement</button>
+          <button type="submit" class="primaire">Expliquer</button>
+        </div>
+        <p class="aide-saisie">Entrée : expliquer · Maj+Entrée : nouvelle ligne</p>
+      </form>
+    </section>
+    <section id="resultats-regles" aria-live="polite"></section>
+  </main>
+
+  <!-- ================= PNJ ================= -->
+  <main id="vue-pnj" class="vue cache">
+    <aside class="barre-sessions">
+      <button id="btn-nouvelle-session" class="primaire large">+ Nouvelle session</button>
+      <button id="btn-nouveau-pnj" class="secondaire large espace-haut">+ Nouveau PNJ</button>
+      <h2 class="titre-liste">Sessions</h2>
+      <ul id="liste-sessions" class="liste-sessions"></ul>
+    </aside>
+    <section class="zone-dialogue">
+      <div id="sans-session" class="vide">
+        <p>Choisissez une session à gauche, ou créez-en une pour parler à un PNJ.</p>
+      </div>
+      <div id="session" class="cache">
+        <div class="entete-session">
+          <div>
+            <h2 id="session-titre"></h2>
+            <p id="session-scene" class="petit"></p>
+          </div>
+          <div class="actions-session">
+            <button id="btn-scene" class="secondaire" aria-expanded="false">Scène & faits</button>
+            <button id="btn-effacer-historique" class="secondaire" title="Efface les échanges ; garde le PNJ, le PJ, la scène et les faits">Effacer l'historique</button>
+            <button id="btn-supprimer-session" class="danger" title="Supprime la session entière">Supprimer</button>
+          </div>
+        </div>
+        <div id="panneau-scene" class="panneau-scene cache">
+          <dl id="details-scene"></dl>
+          <h3>Faits établis</h3>
+          <ol id="liste-faits"></ol>
+          <form id="form-fait" class="ligne-actions">
+            <input id="nouveau-fait" placeholder="Nouveau fait, ex. : Kael a payé le droit de quai" required>
+            <button type="submit" class="secondaire">Ajouter le fait</button>
+          </form>
+        </div>
+        <div id="fil" class="fil" aria-live="polite"></div>
+        <form id="form-message" class="composeur">
+          <textarea id="message" rows="2" placeholder="Ce que dit ou fait le PJ…" required></textarea>
+          <button type="submit" class="primaire">Envoyer</button>
+        </form>
+        <p class="aide-saisie">Entrée : envoyer · Maj+Entrée : nouvelle ligne</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= Fenêtres ================= -->
+  <dialog id="dlg-aide" class="fenetre large">
+    <div class="entete-fenetre">
+      <h2>Aide — manuel d'utilisation</h2>
+      <button class="bouton-icone fermer" aria-label="Fermer">✕</button>
+    </div>
+    <article id="contenu-manuel" class="manuel">Chargement…</article>
+  </dialog>
+
+  <dialog id="dlg-config" class="fenetre large">
+    <div class="entete-fenetre">
+      <h2>Configuration</h2>
+      <button class="bouton-icone fermer" aria-label="Fermer">✕</button>
+    </div>
+    <nav class="onglets-fenetre">
+      <button class="onglet-config actif" data-panneau="simple">Modèles et clés API</button>
+      <button class="onglet-config" data-panneau="avance">Fichier config.yaml</button>
+    </nav>
+    <div id="config-erreur" class="alerte cache"></div>
+    <div id="panneau-simple" class="panneau-config">
+      <div id="usages" class="grille-usages"></div>
+    </div>
+    <div id="panneau-avance" class="panneau-config cache">
+      <p class="petit">Tous les réglages. Le fichier est vérifié avant d'être enregistré : en cas d'erreur, rien n'est modifié. <span id="chemin-config"></span></p>
+      <textarea id="texte-config" class="editeur" spellcheck="false"></textarea>
+      <div class="ligne-actions">
+        <span class="espace"></span>
+        <button id="btn-recharger-config" class="secondaire">Annuler les modifications</button>
+        <button id="btn-enregistrer-config" class="primaire">Enregistrer le fichier</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-session" class="fenetre">
+    <form id="form-session" method="dialog">
+      <div class="entete-fenetre">
+        <h2>Nouvelle session</h2>
+        <button type="button" class="bouton-icone fermer" aria-label="Fermer">✕</button>
+      </div>
+      <div class="champs">
+        <label>PNJ <select id="ns-persona" required></select></label>
+        <p class="petit lien-pnj">Le PNJ n'existe pas encore ? <button type="button" id="btn-ns-creer-pnj" class="lien">Créer un PNJ</button></p>
+        <label>Nom du PJ qui parle <input id="ns-pj" required placeholder="Kael"></label>
+        <label>Lieu <input id="ns-lieu" required placeholder="Dock 7"></label>
+        <label>Moment <input id="ns-moment" required placeholder="Cycle de nuit"></label>
+        <label>Ambiance <span class="petit">(facultatif)</span><input id="ns-ambiance"></label>
+        <label>Enjeux <span class="petit">(facultatif)</span><textarea id="ns-enjeux" rows="2"></textarea></label>
+      </div>
+      <div class="ligne-actions">
+        <span class="espace"></span>
+        <button type="button" class="secondaire fermer">Annuler</button>
+        <button type="submit" class="primaire" value="ok">Créer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-pnj" class="fenetre large">
+    <form id="form-pnj" novalidate>
+      <div class="entete-fenetre">
+        <h2>Nouveau PNJ</h2>
+        <button type="button" class="bouton-icone fermer" aria-label="Fermer">✕</button>
+      </div>
+      <div class="ligne-actions depart-pnj">
+        <label class="petit">Partir de
+          <select id="pnj-depart"></select>
+        </label>
+        <span class="petit">Remplacez chaque texte pré-rempli : les champs encore identiques au point de départ sont surlignés.</span>
+      </div>
+      <div id="pnj-erreur" class="alerte cache"></div>
+      <div class="corps-pnj">
+        <fieldset>
+          <legend>Identité</legend>
+          <div class="grille-2">
+            <label>Nom <input data-champ="nom" required></label>
+            <label>Identifiant <span class="petit">(nom du fichier, rempli d'après le nom)</span><input data-champ="id" required></label>
+            <label>Espèce <input data-champ="espece" required></label>
+            <label>Origine <input data-champ="origine" required></label>
+          </div>
+          <label>Rôle dans l'histoire <input data-champ="role" required></label>
+        </fieldset>
+        <fieldset>
+          <legend>Caractère</legend>
+          <label>Personnalité <span class="petit">(quelques phrases)</span><textarea data-champ="personnalite" rows="3" required></textarea></label>
+          <label>Attitude envers les personnages joueurs <textarea data-champ="attitude_envers_pj" rows="2" required></textarea></label>
+        </fieldset>
+        <fieldset>
+          <legend>Façon de parler</legend>
+          <label>Registre <input data-champ="parole.registre" required></label>
+          <div class="liste-champ" data-liste="parole.tics" data-libelle="Tics" data-aide="Gestes ou expressions récurrents (facultatif)"></div>
+          <div class="liste-champ" data-liste="parole.exemples" data-libelle="Exemples de répliques" data-aide="Montrent au modèle le ton à imiter (facultatif)"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Ce qu'il veut, ce qu'il sait</legend>
+          <div class="liste-champ" data-liste="objectifs" data-libelle="Objectifs" data-aide="Au moins un"></div>
+          <div class="liste-champ" data-liste="connaissances" data-libelle="Connaissances" data-aide="Ce qu'il sait et peut dire (facultatif)"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Secrets</legend>
+          <p class="petit">Un secret n'est révélé que si sa condition est remplie dans la scène. Sans condition, il n'est <strong>jamais</strong> révélé.</p>
+          <div id="pnj-secrets"></div>
+          <button type="button" id="btn-ajouter-secret" class="secondaire petit-bouton">+ Ajouter un secret</button>
+        </fieldset>
+      </div>
+      <div class="ligne-actions">
+        <span class="espace"></span>
+        <button type="button" class="secondaire fermer">Annuler</button>
+        <button type="submit" class="primaire">Créer le PNJ</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-confirmer" class="fenetre petite">
+    <form method="dialog">
+      <p id="confirmer-texte"></p>
+      <div class="ligne-actions">
+        <span class="espace"></span>
+        <button value="non" class="secondaire">Annuler</button>
+        <button value="oui" id="confirmer-oui" class="danger">Confirmer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="notifications" class="notifications" aria-live="assertive"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -5,9 +5,12 @@ description = "Assistant du meneur pour Metal Adventures 1.5 : répliques de PNJ
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=2.8.0",
+    "fastapi>=0.163.1",
+    "markdown>=3.11.3",
     "openai>=1",
     "pydantic>=2",
     "pyyaml>=6",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]
@@ -15,11 +18,16 @@ dependencies = [
 search = "agent_jdr.core.rules_index:search_cli"
 # Dialogue avec un PNJ : `uv run parler orla-venn --lieu … --moment … --pj …`.
 parler = "agent_jdr.interfaces.cli:main"
+# Interface web : `uv run web` puis http://127.0.0.1:8000 (ouvert automatiquement).
+web = "agent_jdr.interfaces.web.app:main"
 
 [dependency-groups]
 # Outils de construction de l'index (hors exécution de l'agent).
 build = ["pymupdf>=1.24"]
-dev = ["pytest>=8"]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=8",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -75,3 +75,111 @@ def charger_persona(chemin: Path) -> Persona:
 def charger_personas(dossier: Path) -> dict[str, Persona]:
     """Toutes les fiches `*.yaml` du dossier, indexées par id."""
     return {p.stem: charger_persona(p) for p in sorted(dossier.glob("*.yaml"))}
+
+
+# --- Création d'une fiche (interface web) ------------------------------------------
+
+LIBELLES_CHAMPS = {
+    "id": "Identifiant", "nom": "Nom", "espece": "Espèce", "origine": "Origine", "role": "Rôle",
+    "personnalite": "Personnalité", "parole": "Parole", "registre": "Registre", "tics": "Tics",
+    "exemples": "Exemples de répliques", "objectifs": "Objectifs", "connaissances": "Connaissances",
+    "secrets": "Secrets", "contenu": "Contenu", "condition_revelation": "Condition de révélation",
+    "attitude_envers_pj": "Attitude envers les PJ",
+}
+
+
+class FicheRefusee(PersonaInvalide):
+    """Fiche saisie non conforme ; `erreurs` : chemin du champ (« parole.registre », « secrets.0.contenu ») → message."""
+
+    def __init__(self, erreurs: dict[str, str]) -> None:
+        self.erreurs = erreurs
+        super().__init__("Fiche incomplète ou incorrecte :\n" + "\n".join(
+            f"  - {_libelle(champ)} : {message}" for champ, message in erreurs.items()
+        ))
+
+
+def _libelle(champ: str) -> str:
+    morceaux = []
+    for m in champ.split("."):
+        morceaux.append(f"n° {int(m) + 1}" if m.isdigit() else LIBELLES_CHAMPS.get(m, m))
+    return " > ".join(morceaux)
+
+
+def _message(err: dict) -> str:
+    match err["type"]:
+        case "missing" | "string_too_short":
+            return "à remplir"
+        case "too_short":
+            return "au moins un élément"
+        case "string_pattern_mismatch":
+            return "minuscules sans accents, chiffres et tirets entre les mots (ex. capitaine-rook)"
+        case "extra_forbidden":
+            return "champ inconnu"
+        case "string_type":
+            return "doit être un texte"
+    return err["msg"]
+
+
+def _nettoyer(valeur):
+    """Retire les textes vides et éléments vides des listes (lignes laissées blanches dans le formulaire)."""
+    if isinstance(valeur, dict):
+        propre = {k: _nettoyer(v) for k, v in valeur.items()}
+        return {k: v for k, v in propre.items() if v not in (None, "", [])}
+    if isinstance(valeur, list):
+        return [v for v in (_nettoyer(x) for x in valeur) if v not in (None, "", [], {})]
+    if isinstance(valeur, str):
+        return valeur.strip()
+    return valeur
+
+
+def valider_fiche(donnees: object) -> Persona:
+    """Fiche saisie (dictionnaire) → Persona, avec des messages en français par champ."""
+    if not isinstance(donnees, dict):
+        raise FicheRefusee({"(fiche)": "doit être un dictionnaire"})
+    donnees = _nettoyer(donnees)
+    donnees.setdefault("parole", {})  # erreur rattachée au registre, champ visible du formulaire
+    secrets = donnees.get("secrets")
+    if isinstance(secrets, list):  # un secret sans contenu (seulement une condition) est une erreur visible
+        for i, s in enumerate(secrets):
+            if isinstance(s, dict) and "contenu" not in s:
+                raise FicheRefusee({f"secrets.{i}.contenu": "à remplir (ou supprimez ce secret)"})
+    try:
+        return Persona.model_validate(donnees)
+    except ValidationError as e:
+        erreurs: dict[str, str] = {}
+        for err in e.errors():
+            erreurs.setdefault(".".join(map(str, err["loc"])) or "(fiche)", _message(err))
+        raise FicheRefusee(erreurs) from e
+
+
+def fiche_en_yaml(persona: Persona) -> str:
+    donnees = persona.model_dump(mode="json", exclude_defaults=True)
+    for secret in donnees.get("secrets", []):
+        if secret.get("condition_revelation") is None:
+            secret.pop("condition_revelation", None)
+    corps = yaml.safe_dump(donnees, allow_unicode=True, sort_keys=False, width=10_000)
+    return f"# Fiche PNJ créée depuis l'interface web.\n{corps}"
+
+
+def creer_fiche(dossier: Path, donnees: object) -> Persona:
+    """Valide puis écrit `<id>.yaml` dans `dossier`. Une fiche existante n'est jamais écrasée."""
+    persona = valider_fiche(donnees)
+    dossier.mkdir(parents=True, exist_ok=True)
+    chemin = dossier / f"{persona.id}.yaml"
+    try:
+        with chemin.open("x", encoding="utf-8") as f:  # "x" : échoue si le fichier existe
+            f.write(fiche_en_yaml(persona))
+    except FileExistsError as e:
+        raise FicheRefusee({"id": f"un PNJ « {persona.id} » existe déjà ; choisissez un autre identifiant"}) from e
+    return persona
+
+
+def charger_modele_de_fiche(chemin: Path) -> dict:
+    """Modèle pré-rempli proposé à la création d'un PNJ (pas validé : c'est un point de départ)."""
+    try:
+        donnees = yaml.safe_load(chemin.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as e:
+        raise PersonaInvalide(f"Modèle de fiche PNJ illisible ({chemin.name}) : {e}") from e
+    if not isinstance(donnees, dict):
+        raise PersonaInvalide(f"Modèle de fiche PNJ ({chemin.name}) : doit être un dictionnaire YAML")
+    return donnees

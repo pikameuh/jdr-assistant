@@ -1,0 +1,28 @@
+# =============================================================================
+#  Modèle pré-rempli de la fenêtre « Nouveau PNJ » de l'interface web.
+# =============================================================================
+#  Ce n'est pas un PNJ du jeu : c'est le point de départ proposé quand on crée
+#  une fiche. Chaque champ montre ce qu'on attend ; remplacez-les tous.
+#  Même format que les fiches du dossier des PNJ (voir MANUEL.md, section 10).
+# =============================================================================
+nom: Capitaine Rook
+espece: Humain
+origine: Ancien officier de la flotte, déserteur depuis la bataille de la Ceinture.
+role: Capitaine d'un cargo de contrebande, cherche un équipage pour une course risquée.
+personnalite: >
+  Charmeur et beau parleur, mais calculateur. Garde toujours une porte de sortie.
+  Respecte le courage, méprise la lâcheté.
+parole:
+  registre: Soutenu, avec des expressions militaires qui lui échappent.
+  tics:
+    - Ponctue ses phrases d'un « affirmatif ».
+  exemples:
+    - "Affirmatif, la paie est bonne. Le risque aussi."
+objectifs:
+  - Trouver un équipage avant la fin du cycle.
+connaissances:
+  - Les routes de contrebande qui évitent les patrouilles.
+secrets:
+  - contenu: Il est recherché par la flotte pour désertion.
+    condition_revelation: Seulement si un PJ lui sauve la vie.
+attitude_envers_pj: Aimable mais il les jauge ; méfiant envers quiconque porte un uniforme.

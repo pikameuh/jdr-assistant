@@ -108,6 +108,9 @@ class Fichiers(_Strict):
     dossier_des_pnj: Path
     dossier_des_pdf: Path
     secrets: Path
+    dossier_des_sessions: Path
+    catalogue_des_modeles: Path
+    modele_de_pnj: Path
 
 
 class Config(_Strict):
@@ -148,13 +151,22 @@ def conseil_cle(section: str, fichier: Path) -> str:
     return f"Renseignez la clé « {ENTREE_SECRETS[section]} » dans {fichier} (voir MANUEL.md, section 4)."
 
 
-def _lire_yaml(chemin: Path) -> Any:
+def _lire_texte(chemin: Path) -> str:
     try:
-        return yaml.safe_load(chemin.read_text(encoding="utf-8"))
+        return chemin.read_text(encoding="utf-8")
     except OSError as e:
         raise ConfigInvalide(f"{chemin} : lecture impossible ({e.strerror})") from e
+
+
+def _analyser_yaml(texte: str, chemin: Path) -> Any:
+    try:
+        return yaml.safe_load(texte)
     except yaml.YAMLError as e:
         raise ConfigInvalide(f"{chemin.name} : syntaxe YAML incorrecte\n{e}") from e
+
+
+def _lire_yaml(chemin: Path) -> Any:
+    return _analyser_yaml(_lire_texte(chemin), chemin)
 
 
 def _valider(modele: type[BaseModel], donnees: Any, chemin: Path, forme: str) -> Any:
@@ -182,10 +194,45 @@ def charger_secrets(chemin: Path) -> Secrets:
 
 def charger_config(chemin: Path = CONFIG_DEFAUT) -> Config:
     """Lit et valide la configuration. Chemins relatifs = relatifs au dossier du fichier."""
-    config = _valider(Config, _lire_yaml(chemin), chemin, "sections")
+    return analyser_config(_lire_texte(chemin), chemin)
+
+
+def analyser_config(texte: str, chemin: Path = CONFIG_DEFAUT) -> Config:
+    """Valide le contenu `texte` d'un fichier de configuration situé (ou à écrire) en `chemin`."""
+    config = _valider(Config, _analyser_yaml(texte, chemin), chemin, "sections")
 
     base = chemin.resolve().parent
     fichiers = config.fichiers.model_copy(
         update={nom: base / valeur for nom, valeur in config.fichiers if not valeur.is_absolute()}
     )
     return config.model_copy(update={"fichiers": fichiers})
+
+
+# --- Catalogue des modèles (choix proposés par l'interface web) ---------------------
+
+
+class ModeleCatalogue(_Strict):
+    nom: str = Field(pattern=r"^[a-z0-9][a-z0-9.-]*$")
+    description: str = ""
+    prix: str = ""
+
+
+class Catalogue(_Strict):
+    anthropic: tuple[ModeleCatalogue, ...] = Field(min_length=1)
+    openai: tuple[ModeleCatalogue, ...] = Field(min_length=1)
+
+    def modeles(self, fournisseur: str) -> tuple[ModeleCatalogue, ...]:
+        return getattr(self, fournisseur)
+
+
+def charger_catalogue(chemin: Path) -> Catalogue:
+    """Liste des modèles proposés, par fournisseur (fichier `modeles.yaml`)."""
+    catalogue = _valider(Catalogue, _lire_yaml(chemin), chemin, "sections")
+    for fournisseur in ("anthropic", "openai"):
+        for m in catalogue.modeles(fournisseur):
+            if m.nom.startswith("claude-") != (fournisseur == "anthropic"):
+                raise ConfigInvalide(
+                    f"{chemin.name} : le modèle « {m.nom} » est rangé sous « {fournisseur} », "
+                    "ce n'est pas le bon fournisseur"
+                )
+    return catalogue
