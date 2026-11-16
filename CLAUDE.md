@@ -62,7 +62,7 @@ Couches 1–3 à chaque commit ; couche 4 à part (plus lente/coûteuse). Les co
 ## Commandes
 Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build* uniquement (groupe `build`) : seul `core/rules_extract.py` l'importe, jamais l'agent en exécution. Le web reconstruit l'index en lançant `rules_index build` dans un processus séparé (`core/livres.py`).
 
-- Installation : `uv sync`
+- Installation : `uv sync` ; sous Windows, double-clic sur `installer-windows.bat` (installe uv, puis `uv sync`, crée `secrets.yaml` s'il manque, affiche `uv run web`). Fins de ligne CRLF imposées par `.gitattributes` ; vérifié par `tests/unit/test_installation_windows.py`.
 - Construire l'index des règles (≈ 8 s) : `uv run python -m agent_jdr.core.rules_index build`
 - Question de règles (réponse en français + sources citées, appel au modèle, nécessite la clé `recherche-apikey`) : `uv run python -m agent_jdr.core.rules_index search "expliques moi la dispersion d'une grenade"` (`-n 8` = passages envoyés au modèle)
 - Débogage de la recherche (liste des passages, sans appel LLM) : `uv run python -m agent_jdr.core.rules_index search "faire le plein" --brut -n 5`

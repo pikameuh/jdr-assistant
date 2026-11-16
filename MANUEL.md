@@ -34,8 +34,8 @@ Les réponses sont rédigées par un modèle d'intelligence artificielle interro
 
 | Il vous faut | Pourquoi |
 |---|---|
-| Un ordinateur sous **Linux** ou **macOS** | L'assistant n'a pas été essayé sous Windows. |
-| Un **terminal** | La fenêtre où l'on tape des commandes. Sous macOS : application « Terminal ». Sous Linux : « Terminal » dans le menu des applications. |
+| Un ordinateur sous **Linux**, **macOS** ou **Windows** | Sous Windows, un script fait l'installation à votre place ([section 3](#sous-windows--le-script-dinstallation)). Attention : l'assistant n'a pas encore été essayé sous Windows. |
+| Un **terminal** | La fenêtre où l'on tape des commandes. Sous macOS : application « Terminal ». Sous Linux : « Terminal » dans le menu des applications. Sous Windows : l'« Invite de commandes » (voir [section 3](#sous-windows--le-script-dinstallation)). |
 | Le **dossier du projet** | Fourni par votre équipe, ou récupéré avec git ([section 13](#13-se-faire-aider-par-claude-code)). Dans ce manuel, on suppose qu'il s'appelle `cosmos-demo`. |
 | Les **deux livres PDF** de Metal Adventures 1.5 | Manuel des joueurs et Guide du Meneur, achetés légalement. Ils ne sont pas fournis avec le projet. |
 | Un **compte Anthropic** et/ou un **compte OpenAI** avec des crédits | Selon le ou les fournisseurs choisis, pour obtenir une clé (voir [section 4](#4-les-clés-api-une-seule-fois)). Par défaut, l'assistant utilise Anthropic pour tout. |
@@ -54,6 +54,29 @@ Adaptez le chemin à l'endroit où se trouve votre dossier. Astuce : tapez `cd `
 ## 3. Installation (une seule fois)
 
 L'assistant utilise un outil appelé **uv**, qui installe automatiquement tout le reste (Python et les bibliothèques nécessaires).
+
+### Sous Windows : le script d'installation
+
+Ouvrez le dossier du projet dans l'Explorateur de fichiers et **double-cliquez sur `installer-windows.bat`**. Une fenêtre noire s'ouvre et fait tout, dans l'ordre :
+
+1. elle installe uv s'il n'est pas déjà présent (téléchargé sur le site officiel, astral.sh) ;
+2. elle installe Python et les bibliothèques de l'assistant (la première fois, comptez quelques minutes) ;
+3. elle crée le fichier des clés `secrets.yaml` à partir du modèle, s'il n'existe pas encore (un fichier existant n'est jamais modifié) ;
+4. elle affiche la marche à suivre pour commencer, puis attend que vous appuyiez sur une touche.
+
+Le script peut être relancé sans risque, par exemple après une mise à jour du projet.
+
+**Pour démarrer ensuite.** Ouvrez un terminal dans le dossier du projet : dans l'Explorateur, ouvrez le dossier, cliquez dans la barre d'adresse, tapez `cmd` puis appuyez sur **Entrée**. Dans la fenêtre qui s'ouvre, tapez :
+
+```bat
+uv run web
+```
+
+Le navigateur s'ouvre sur l'interface ([section 6](#6-linterface-web)). Il reste à donner vos clés ([section 4](#4-les-clés-api-une-seule-fois)) et vos livres ([section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois)). Les commandes de ce manuel s'utilisent telles quelles dans cette fenêtre.
+
+Si la fenêtre affiche `ERREUR : …`, voir la [section 12](#12-en-cas-de-problème).
+
+### Sous Linux et macOS
 
 **Étape 1 : installer uv.** Vérifiez d'abord s'il est déjà présent :
 
@@ -544,7 +567,10 @@ Le coût réel d'une partie n'a pas encore été mesuré. Pour le suivre, consul
 
 | Message affiché | Cause | Solution |
 |---|---|---|
-| `command not found: uv` ou `commande introuvable` | uv n'est pas installé, ou le terminal n'a pas été rouvert après l'installation. | [Section 3](#3-installation-une-seule-fois), puis rouvrir le terminal. |
+| `command not found: uv` ou `commande introuvable` (sous Windows : `'uv' n'est pas reconnu en tant que commande interne…`) | uv n'est pas installé, ou le terminal n'a pas été rouvert après l'installation. | [Section 3](#3-installation-une-seule-fois), puis rouvrir le terminal. |
+| Windows, script d'installation : `ERREUR : uv n'a pas pu être installé.` | Pas de connexion Internet, ou téléchargement bloqué (pare-feu, antivirus). | Vérifiez la connexion, puis relancez `installer-windows.bat`. |
+| Windows, script d'installation : `ERREUR : l'installation de Python ou des bibliothèques a échoué.` | Téléchargement interrompu, ou dossier du projet en lecture seule. Le message juste au-dessus donne le détail. | Vérifiez la connexion, puis relancez `installer-windows.bat`. |
+| Windows, script d'installation : `ERREUR : impossible de créer secrets.yaml …` | `secrets.exemple.yaml` manque dans le dossier du projet. | Récupérez un dossier du projet complet, ou créez `secrets.yaml` à la main ([section 4](#4-les-clés-api-une-seule-fois)). |
 | `Erreur : Aucun identifiant Anthropic trouvé : clé absente du fichier de secrets …` ou `Erreur : Aucune clé OpenAI trouvée : …`, suivi de `Renseignez la clé « … » dans …` | L'entrée nommée de `secrets.yaml` est vide, ou le fichier n'existe pas. | Collez la clé dans l'entrée indiquée, dans le fichier indiqué ([section 4](#4-les-clés-api-une-seule-fois), étapes 2 et 3). |
 | `Identifiants Anthropic refusés : …` ou `Clé OpenAI refusée : …` | Clé mal copiée, supprimée, désactivée, ou d'un autre fournisseur que celui choisi dans `config.yaml` pour cet usage. | Recopiez la clé, ou créez-en une nouvelle et remplacez l'ancienne dans `secrets.yaml`. |
 | `Erreur : configuration : secrets.yaml : réglages incorrects` (ou `Erreur de configuration : secrets.yaml : …` avec `search`) suivi de `… : réglage inconnu (faute de frappe ?)` | Nom d'entrée mal écrit dans `secrets.yaml`. | Écrivez exactement `recherche-apikey` et `personas-apikey`. |
