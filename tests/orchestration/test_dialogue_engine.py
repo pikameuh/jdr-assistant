@@ -10,10 +10,11 @@ from anthropic.types import Message, TextBlock, ThinkingBlock, ToolUseBlock, Usa
 from agent_jdr.core import dialogue_engine
 from agent_jdr.core.config import charger_config
 from agent_jdr.core.dialogue_engine import AUCUN_PASSAGE, OUTIL_REGLES, MoteurDialogue
+from agent_jdr.core.fournisseurs.fournisseur_anthropic import FournisseurAnthropic
 from agent_jdr.core.persona import charger_persona
 from agent_jdr.core.prompt_builder import Tour
 from agent_jdr.core.rules_index import Passage, RulesIndex, construire_index
-from agent_jdr.core.rules_qa import IdentifiantsAbsents, ReponseIncomplete
+from agent_jdr.core.fournisseurs.base import IdentifiantsAbsents, ReponseIncomplete
 from agent_jdr.core.scene import Scene
 from agent_jdr.interfaces import cli
 from tests.reglages_test import CONFIG_TEST, CONSIGNES_DIALOGUE
@@ -67,7 +68,7 @@ def _message(blocs, stop_reason):
 def moteur(index, *reponses):
     client = MagicMock()
     client.messages.create.side_effect = list(reponses)
-    return MoteurDialogue(ORLA, SCENE, index, REGLAGES, client=client), client
+    return MoteurDialogue(ORLA, SCENE, index, REGLAGES, FournisseurAnthropic(REGLAGES, client)), client
 
 
 def appels(client):
@@ -88,7 +89,14 @@ def test_replique_simple_et_parametres(index):
     assert params["max_tokens"] == 1000
     assert params["thinking"] == {"type": "adaptive"}
     assert "output_config" not in params  # niveau de réflexion « defaut »
-    assert params["tools"] == [OUTIL_REGLES]
+    assert params["tools"] == [
+        {
+            "name": "rechercher_regle",
+            "description": OUTIL_REGLES.description,
+            "input_schema": OUTIL_REGLES.schema,
+            "strict": True,
+        }
+    ]
     assert params["cache_control"] == {"type": "ephemeral"}
     assert params["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert "cache_control" not in params["system"][1]
@@ -148,7 +156,7 @@ def test_appels_paralleles_resultats_dans_un_seul_message(index):
     m.repondre("?")
     resultats = appels(client)[1]["messages"][-1]["content"]
     assert [r["tool_use_id"] for r in resultats] == ["toolu_0", "toolu_1"]
-    assert resultats[1]["content"] == AUCUN_PASSAGE
+    assert resultats[1]["content"] == [{"type": "text", "text": AUCUN_PASSAGE}]
 
 
 @pytest.mark.parametrize("entree", [{}, {"requete": "  "}, {"requete": 3}])
@@ -163,7 +171,7 @@ def test_outil_inconnu_signale_au_modele(index):
     m, client = moteur(index, outil({"x": 1}, name="autre"), texte("ok"))
     m.repondre("?")
     (resultat,) = appels(client)[1]["messages"][-1]["content"]
-    assert resultat["is_error"] is True and "autre" in resultat["content"]
+    assert resultat["is_error"] is True and "autre" in resultat["content"][0]["text"]
 
 
 def test_trop_de_recherches(index):
@@ -305,23 +313,24 @@ def test_niveau_de_reflexion_transmis(index):
     client = MagicMock()
     client.messages.create.side_effect = [texte("ok")]
     reglages = REGLAGES.model_copy(update={"niveau_de_reflexion": "eleve"})
-    MoteurDialogue(ORLA, SCENE, index, reglages, client=client).repondre("?")
+    MoteurDialogue(ORLA, SCENE, index, reglages, FournisseurAnthropic(reglages, client)).repondre("?")
     assert appels(client)[0]["output_config"] == {"effort": "high"}
 
 
 def test_passages_par_recherche_transmis():
     faux_index = MagicMock()
     faux_index.rechercher.return_value = []
-    m = MoteurDialogue(ORLA, SCENE, faux_index, REGLAGES, client=MagicMock())
-    m.client.messages.create.side_effect = [outil({"requete": "pile"}), texte("ok")]
+    client = MagicMock()
+    client.messages.create.side_effect = [outil({"requete": "pile"}), texte("ok")]
+    m = MoteurDialogue(ORLA, SCENE, faux_index, REGLAGES, FournisseurAnthropic(REGLAGES, client))
     m.repondre("?")
     faux_index.rechercher.assert_called_once_with("pile", REGLAGES.passages_par_recherche)
 
 
 def test_cli_affiche_le_modele_de_la_config(monkeypatch, chemin_db, capsys):
     lancer_cli(monkeypatch, chemin_db, [])
-    modele = charger_config().dialogue.modele
-    assert f"(modèle : {modele})" in capsys.readouterr().out
+    reglages = charger_config().dialogue
+    assert f"({reglages.fournisseur}, modèle : {reglages.modele})" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("commande", ["parler", "search"])

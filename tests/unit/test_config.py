@@ -27,6 +27,7 @@ def ecrire(dossier, donnees):
 
 def test_config_livree_valide():
     config = charger_config()
+    assert config.dialogue.fournisseur == config.questions_de_regles.fournisseur == "anthropic"
     assert config.dialogue.modele == "claude-sonnet-5-5"
     assert config.questions_de_regles.modele == "claude-sonnet-5-5"
     assert config.dialogue.consignes and config.questions_de_regles.consignes
@@ -44,11 +45,7 @@ def test_chemins_relatifs_au_dossier_du_fichier(tmp_path, donnees):
 @pytest.mark.parametrize(("niveau", "effort"), list(NIVEAUX_DE_REFLEXION.items()))
 def test_niveau_de_reflexion(tmp_path, donnees, niveau, effort):
     donnees["dialogue"]["niveau_de_reflexion"] = niveau
-    params = charger_config(ecrire(tmp_path, donnees)).dialogue.parametres_modele()
-    if effort is None:
-        assert "output_config" not in params
-    else:
-        assert params["output_config"] == {"effort": effort}
+    assert charger_config(ecrire(tmp_path, donnees)).dialogue.effort == effort
 
 
 def test_reglage_manquant_nomme(tmp_path, donnees):
@@ -72,7 +69,8 @@ def test_niveau_inconnu_liste_les_valeurs_permises(tmp_path, donnees):
 @pytest.mark.parametrize(
     ("section", "cle", "valeur", "message"),
     [
-        ("dialogue", "modele", "gpt-4", "nom de modèle incorrect"),
+        ("dialogue", "modele", "Claude Sonnet", "nom de modèle incorrect"),
+        ("dialogue", "fournisseur", "mistral", "valeur non permise ; choix possibles : 'anthropic' ou 'openai'"),
         ("dialogue", "longueur_max_reponse", 0, "doit être au moins 1"),
         ("dialogue", "longueur_max_reponse", 200000, "doit être au plus 128000"),
         ("dialogue", "recherches_max_par_replique", 0, "doit être au moins 1"),
@@ -110,4 +108,24 @@ def test_fichier_sans_sections(tmp_path):
 def test_section_mal_formee(tmp_path, donnees):
     donnees["fichiers"] = "data"
     with pytest.raises(ConfigInvalide, match="fichiers : doit contenir des sous-réglages"):
+        charger_config(ecrire(tmp_path, donnees))
+
+
+def test_fournisseur_different_par_section(tmp_path, donnees):
+    donnees["dialogue"].update(fournisseur="openai", modele="gpt-6.1-sol")
+    config = charger_config(ecrire(tmp_path, donnees))
+    assert (config.dialogue.fournisseur, config.dialogue.modele) == ("openai", "gpt-6.1-sol")
+    assert config.questions_de_regles.fournisseur == "anthropic"
+
+
+@pytest.mark.parametrize(
+    ("fournisseur", "modele", "message"),
+    [
+        ("anthropic", "gpt-6.1-sol", "« gpt-6.1-sol » n'est pas un modèle Anthropic"),
+        ("openai", "claude-sonnet-5-5", "« claude-sonnet-5-5 » est un modèle Anthropic, pas OpenAI"),
+    ],
+)
+def test_modele_incoherent_avec_le_fournisseur(tmp_path, donnees, fournisseur, modele, message):
+    donnees["questions_de_regles"].update(fournisseur=fournisseur, modele=modele)
+    with pytest.raises(ConfigInvalide, match=f"questions_de_regles : le modèle {message}"):
         charger_config(ecrire(tmp_path, donnees))

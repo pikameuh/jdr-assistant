@@ -14,25 +14,28 @@ Assistant du meneur pendant une partie : produire les répliques des PNJ en coh�
 - Langage : **Python**.
 - IHM : **CLI d'abord, back-end web ensuite** → le cœur doit rester indépendant de l'IHM.
 - Règles : **index SQLite FTS5** interrogé par un outil `rechercher_regle` (aucun service externe).
-- LLM : modèle Claude **choisi dans `config.yaml`** (défaut : `claude-sonnet-5-5`), adaptive thinking, prompt caching, tool use.
+- LLM : **fournisseur et modèle choisis dans `config.yaml`**, séparément pour le dialogue et les questions de règles : Anthropic (API Messages ; défaut `claude-sonnet-5-5`) ou OpenAI (API Responses). Réflexion, cache, tool use dans les deux cas.
 
 ## Configuration
 Tout réglage modifiable à la main est dans **`config.yaml`** (racine), noms en français, commentés, pensé pour un non-développeur : modèles, niveau de réflexion, longueurs, nombre de passages, **consignes données au modèle**, chemins. Aucune valeur par défaut cachée dans le code : un réglage manquant ou mal écrit est refusé avec un message en français. Le cœur reçoit ses réglages en paramètre ; seules les commandes lisent le fichier (`core/config.py`). Les tests utilisent leur propre configuration (`tests/reglages_test.py`), pour que l'édition de `config.yaml` ne les casse pas.
 
 ## Architecture
-Règle de dépendance absolue : `interfaces/` dépend de `core/`, **jamais l'inverse**. Le web réutilisera le `core/` tel quel.
+Règle de dépendance absolue : `interfaces/` dépend de `core/`, **jamais l'inverse**. Le web réutilisera le `core/` tel quel. Seuls les modules `core/fournisseurs/fournisseur_*.py` importent un SDK (`anthropic`, `openai`) ; un test le vérifie.
 
 ```
 config.yaml              # configuration (modèles, consignes, chemins)
 agent_jdr/
   core/                  # cœur réutilisable, zéro dépendance IHM
     config.py            # lecture + validation de config.yaml
+    fournisseurs/        # seul endroit qui importe un SDK (anthropic, openai)
+      base.py            # interface commune + erreurs communes
+      fournisseur_anthropic.py  fournisseur_openai.py
     personas/            # PNJ en YAML (données versionnées), un fichier = un id
     persona.py           # schéma PNJ (pydantic) + chargement YAML
     scene.py             # état de scène (contexte), sérialisable
     rules_index.py       # construction + requête FTS5
-    prompt_builder.py    # assemblage persona + scène + règles + historique
-    dialogue_engine.py   # appel Opus 4.8, tool use, prompt caching
+    prompt_builder.py    # assemblage persona + scène + historique (format neutre)
+    dialogue_engine.py   # boucle tool use, indépendante du fournisseur
   interfaces/
     cli.py               # client mince (v1)
     # web/               # plus tard, même core
@@ -47,7 +50,7 @@ agent_jdr/
 3. **orchestration** — client Anthropic mocké : bon appel de l'outil règles, boucle tool use, historique.
 4. **evals** — LLM réel, scénarios figés : reste en personnage, ne révèle pas ses secrets, consulte les règles au bon moment.
 
-Couches 1–3 à chaque commit ; couche 4 à part (plus lente/coûteuse).
+Couches 1–3 à chaque commit ; couche 4 à part (plus lente/coûteuse). Les couches 1–3 couvrent les deux fournisseurs (clients mockés, vrais types des SDK).
 
 ## Commandes
 Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build* uniquement (groupe `build`) : seul `core/rules_extract.py` l'importe, jamais l'agent en exécution.

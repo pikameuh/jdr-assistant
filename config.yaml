@@ -6,21 +6,37 @@
 #  Respectez les décalages en début de ligne (des espaces, pas de tabulation).
 #  En cas d'erreur, la commande indique le réglage fautif, sans rien lancer.
 #
-#  Modèles possibles (du moins cher au plus cher) :
-#    claude-haiku-5-5    rapide et très économique
-#    claude-sonnet-5-5   bon équilibre qualité / prix
-#    claude-opus-5-5     le plus soigné de la gamme Opus
-#    claude-opus-4-8     génération précédente d'Opus
+#  Fournisseur : l'entreprise dont le modèle rédige les réponses.
+#    anthropic   (modèles Claude ; clé dans la variable ANTHROPIC_API_KEY)
+#    openai      (modèles GPT ; clé dans la variable OPENAI_API_KEY)
+#  Chaque section a son propre fournisseur : on peut en choisir un pour le
+#  dialogue et un autre pour les questions de règles.
+#
+#  Modèles possibles, du moins cher au plus cher
+#  (prix par million de jetons, entrée / sortie, relevés le 2026-11-16) :
+#    fournisseur: anthropic
+#      claude-haiku-5-5    0,10 $ / 0,50 $   rapide et très économique
+#      claude-sonnet-5-5   2 $ / 10 $        bon équilibre qualité / prix
+#      claude-opus-5-5     4 $ / 20 $        le plus soigné de la gamme Opus
+#      claude-opus-4-8     5 $ / 25 $        génération précédente d'Opus
+#    fournisseur: openai
+#      gpt-6-luna          0,10 $ / 0,50 $   économique, gros volumes
+#      gpt-6.1-terra       1 $ / 5 $         rapide et efficace
+#      gpt-6.1-sol         2 $ / 10 $        équilibre intelligence / coût
+#      gpt-6-astra         10 $ / 50 $       le plus puissant d'OpenAI
+#  Le nom du modèle doit correspondre au fournisseur choisi.
 #
 #  Niveau de réflexion : combien le modèle réfléchit avant de répondre.
 #  Plus il est élevé, plus la réponse est soignée, lente et chère.
 #    defaut | bas | moyen | eleve | tres_eleve | maximum
-#  (defaut = le réglage standard du modèle choisi)
+#  (defaut = le réglage standard du modèle choisi ; certains modèles
+#  n'acceptent pas tous les niveaux : l'API le signale par une erreur)
 # =============================================================================
 
 
 # --- Dialogue avec un PNJ (commande : uv run parler) --------------------------
 dialogue:
+  fournisseur: anthropic
   modele: claude-sonnet-5-5
   niveau_de_reflexion: defaut
 
@@ -51,6 +67,7 @@ dialogue:
 
 # --- Questions de règles (commande : uv run search) ---------------------------
 questions_de_regles:
+  fournisseur: anthropic
   modele: claude-sonnet-5-5
   niveau_de_reflexion: defaut
   longueur_max_reponse: 16000

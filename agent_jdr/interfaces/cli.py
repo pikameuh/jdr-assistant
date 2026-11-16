@@ -10,13 +10,16 @@ import argparse
 import sys
 from pathlib import Path
 
-import anthropic
-
 from agent_jdr.core.config import CONFIG_DEFAUT, ConfigInvalide, charger_config
 from agent_jdr.core.dialogue_engine import MoteurDialogue
+from agent_jdr.core.fournisseurs import creer_fournisseur
+from agent_jdr.core.fournisseurs.base import (
+    ErreurFournisseur,
+    IdentifiantsAbsents,
+    ReponseIncomplete,
+)
 from agent_jdr.core.persona import PersonaInvalide, charger_personas
 from agent_jdr.core.rules_index import RulesIndex
-from agent_jdr.core.rules_qa import IdentifiantsAbsents, ReponseIncomplete
 from agent_jdr.core.scene import Scene
 
 
@@ -71,8 +74,9 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     with index:
-        moteur = MoteurDialogue(persona, scene, index, config.dialogue)
-        print(f"Vous parlez à {persona.nom} (modèle : {config.dialogue.modele}).")
+        reglages = config.dialogue
+        moteur = MoteurDialogue(persona, scene, index, reglages, creer_fournisseur(reglages))
+        print(f"Vous parlez à {persona.nom} ({reglages.fournisseur}, modèle : {reglages.modele}).")
         print("/fait <texte> : ajouter un fait à la scène ; /quitter : sortir.")
         while True:
             try:
@@ -100,8 +104,8 @@ def main(argv: list[str] | None = None) -> int:
             except ReponseIncomplete as e:
                 _erreur(f"{e} (tour non enregistré, vous pouvez reformuler)")
                 continue
-            except anthropic.APIError as e:
-                _erreur(f"API Anthropic : {e.message} (tour non enregistré)")
+            except ErreurFournisseur as e:
+                _erreur(f"{e} (tour non enregistré)")
                 continue
             print(f"{persona.nom} > {replique.texte}")
             if replique.regles_consultees:

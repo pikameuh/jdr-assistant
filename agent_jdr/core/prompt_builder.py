@@ -1,19 +1,25 @@
 """Assemblage du prompt d'un PNJ : persona + scène + historique.
 
-Sortie : paramètres `system` et `messages` de `client.messages.create`.
+Sortie neutre (`Prompt`), traduite pour chaque fournisseur dans `fournisseurs/`.
 Les consignes viennent de la configuration (`dialogue.consignes`).
-Le modèle, l'outil de règles et le cache sont ajoutés par le moteur de dialogue
-(phase 2). L'ordre sert le cache : la partie stable (consignes + persona) vient
-en premier bloc système, la partie variable (scène) en second.
+La partie stable (consignes + persona) est séparée de la partie variable (scène) :
+elle reste identique d'une scène à l'autre, ce qui permet sa mise en cache.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 
 from agent_jdr.core.persona import Persona
 from agent_jdr.core.scene import Scene
+
+@dataclass(frozen=True)
+class Prompt:
+    stable: str  # consignes + persona
+    scene: str
+    messages: list[dict[str, str]]  # {"role": "user" | "assistant", "content": ...}
+
 
 @dataclass(frozen=True)
 class Tour:
@@ -70,8 +76,8 @@ def rendre_scene(scene: Scene) -> str:
 
 def construire_prompt(
     persona: Persona, scene: Scene, historique: list[Tour], consignes: str
-) -> dict[str, Any]:
-    """`system` + `messages` pour faire répondre `persona` au dernier tour du joueur."""
+) -> Prompt:
+    """Prompt pour faire répondre `persona` au dernier tour du joueur."""
     if persona.id not in scene.pnj_presents:
         raise ValueError(f"Le PNJ « {persona.id} » n'est pas présent dans la scène")
     if not historique or historique[-1].locuteur != "joueur":
@@ -87,10 +93,4 @@ def construire_prompt(
     if messages[0]["role"] != "user":
         raise ValueError("L'historique doit commencer par un tour du joueur")
 
-    return {
-        "system": [
-            {"type": "text", "text": f"{consignes}\n\n{rendre_persona(persona)}"},
-            {"type": "text", "text": rendre_scene(scene)},
-        ],
-        "messages": messages,
-    }
+    return Prompt(f"{consignes}\n\n{rendre_persona(persona)}", rendre_scene(scene), messages)

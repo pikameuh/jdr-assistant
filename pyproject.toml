@@ -5,6 +5,7 @@ description = "Assistant du meneur pour Metal Adventures 1.5 : répliques de PNJ
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=2.8.0",
+    "openai>=1",
     "pydantic>=2",
     "pyyaml>=6",
 ]

@@ -8,6 +8,7 @@ CONSIGNES_REGLES = "Consignes de règles de test."
 CONFIG_TEST = Config.model_validate(
     {
         "dialogue": {
+            "fournisseur": "anthropic",
             "modele": "claude-test-dialogue",
             "niveau_de_reflexion": "defaut",
             "longueur_max_reponse": 1000,
@@ -16,6 +17,7 @@ CONFIG_TEST = Config.model_validate(
             "consignes": CONSIGNES_DIALOGUE,
         },
         "questions_de_regles": {
+            "fournisseur": "anthropic",
             "modele": "claude-test-regles",
             "niveau_de_reflexion": "defaut",
             "longueur_max_reponse": 2000,

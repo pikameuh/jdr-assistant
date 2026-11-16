@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 RACINE = Path(__file__).resolve().parents[2]
 CONFIG_DEFAUT = RACINE / "config.yaml"
@@ -26,6 +26,7 @@ NIVEAUX_DE_REFLEXION: dict[str, str | None] = {
     "maximum": "max",
 }
 NiveauDeReflexion = Literal["defaut", "bas", "moyen", "eleve", "tres_eleve", "maximum"]
+NomFournisseur = Literal["anthropic", "openai"]
 
 
 class ConfigInvalide(ValueError):
@@ -43,7 +44,9 @@ def _message_en_francais(err: dict[str, Any]) -> str:
         case "literal_error":
             return f"valeur non permise ; choix possibles : {str(ctx.get('expected')).replace(' or ', ' ou ')}"
         case "string_pattern_mismatch":
-            return "nom de modèle incorrect (il doit commencer par « claude- »)"
+            return "nom de modèle incorrect (minuscules, chiffres, points et tirets seulement)"
+        case "value_error":
+            return str(ctx.get("error"))
         case "greater_than_equal":
             return f"doit être au moins {ctx.get('ge')}"
         case "less_than_equal":
@@ -64,22 +67,31 @@ class _Strict(BaseModel):
 
 
 class ReglagesModele(_Strict):
-    modele: str = Field(pattern=r"^claude-[a-z0-9.-]+$")
+    fournisseur: NomFournisseur
+    modele: str = Field(pattern=r"^[a-z0-9][a-z0-9.-]*$")
     niveau_de_reflexion: NiveauDeReflexion
     longueur_max_reponse: int = Field(ge=1, le=128000)
     consignes: str = Field(min_length=1)
 
-    def parametres_modele(self) -> dict[str, Any]:
-        """Paramètres communs de `messages.create` : modèle, longueur, réflexion."""
-        params: dict[str, Any] = {
-            "model": self.modele,
-            "max_tokens": self.longueur_max_reponse,
-            "thinking": {"type": "adaptive"},
-        }
-        effort = NIVEAUX_DE_REFLEXION[self.niveau_de_reflexion]
-        if effort:
-            params["output_config"] = {"effort": effort}
-        return params
+    @model_validator(mode="after")
+    def _modele_du_bon_fournisseur(self) -> ReglagesModele:
+        est_claude = self.modele.startswith("claude-")
+        if self.fournisseur == "anthropic" and not est_claude:
+            raise ValueError(
+                f"le modèle « {self.modele} » n'est pas un modèle Anthropic "
+                "(il doit commencer par « claude- ») ; vérifiez « fournisseur » et « modele »"
+            )
+        if self.fournisseur == "openai" and est_claude:
+            raise ValueError(
+                f"le modèle « {self.modele} » est un modèle Anthropic, pas OpenAI ; "
+                "vérifiez « fournisseur » et « modele »"
+            )
+        return self
+
+    @property
+    def effort(self) -> str | None:
+        """Valeur `effort` à envoyer à l'API (None = réglage standard du modèle)."""
+        return NIVEAUX_DE_REFLEXION[self.niveau_de_reflexion]
 
 
 class ReglagesDialogue(ReglagesModele):

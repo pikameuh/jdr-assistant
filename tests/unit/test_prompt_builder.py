@@ -27,21 +27,21 @@ HISTORIQUE = [
 
 
 def test_partie_stable_puis_scene():
-    stable, variable = construire_prompt(ORLA, SCENE, HISTORIQUE)["system"]
-    assert stable["text"].startswith(CONSIGNES)
-    assert "Orla Venn" in stable["text"] and "Dock 7" not in stable["text"]
-    assert "Dock 7" in variable["text"] and "Kael a payé d'avance" in variable["text"]
+    prompt = construire_prompt(ORLA, SCENE, HISTORIQUE)
+    assert prompt.stable.startswith(CONSIGNES)
+    assert "Orla Venn" in prompt.stable and "Dock 7" not in prompt.stable
+    assert "Dock 7" in prompt.scene and "Kael a payé d'avance" in prompt.scene
 
 
 def test_partie_stable_identique_quelle_que_soit_la_scene():
     autre = SCENE.avec_fait("Une alarme retentit")
-    a = construire_prompt(ORLA, SCENE, HISTORIQUE)["system"][0]
-    b = construire_prompt(ORLA, autre, HISTORIQUE)["system"][0]
+    a = construire_prompt(ORLA, SCENE, HISTORIQUE).stable
+    b = construire_prompt(ORLA, autre, HISTORIQUE).stable
     assert a == b
 
 
 def test_tous_les_champs_de_la_fiche_sont_rendus():
-    texte = construire_prompt(ORLA, SCENE, HISTORIQUE)["system"][0]["text"]
+    texte = construire_prompt(ORLA, SCENE, HISTORIQUE).stable
     for valeur in (
         ORLA.espece, ORLA.origine, ORLA.role, ORLA.parole.registre,
         *ORLA.parole.tics, *ORLA.parole.exemples, *ORLA.objectifs,
@@ -51,14 +51,14 @@ def test_tous_les_champs_de_la_fiche_sont_rendus():
 
 
 def test_secrets_avec_leur_condition():
-    texte = construire_prompt(ORLA, SCENE, HISTORIQUE)["system"][0]["text"]
+    texte = construire_prompt(ORLA, SCENE, HISTORIQUE).stable
     for s in ORLA.secrets:
         assert s.contenu in texte
         assert f"(révélation : {s.condition_revelation or 'jamais'})" in texte
 
 
 def test_historique_converti_en_messages():
-    messages = construire_prompt(ORLA, SCENE, HISTORIQUE)["messages"]
+    messages = construire_prompt(ORLA, SCENE, HISTORIQUE).messages
     assert messages == [
         {"role": "user", "content": "[Kael] Une pile, s'il vous plaît."},
         {"role": "assistant", "content": "Crédits ou promesses, capitaine ?"},

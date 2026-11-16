@@ -217,17 +217,20 @@ def main(argv: list[str] | None = None) -> int:
 def _repondre_cli(
     question: str, index: RulesIndex, reglages: ReglagesQuestions, limite: int
 ) -> int:
-    import anthropic
-
     from agent_jdr.core import rules_qa
+    from agent_jdr.core.fournisseurs import creer_fournisseur
+    from agent_jdr.core.fournisseurs.base import (
+        ErreurFournisseur,
+        IdentifiantsAbsents,
+        ReponseIncomplete,
+    )
 
     try:
-        reponse = rules_qa.repondre(question, index, reglages, limite=limite)
-    except (rules_qa.IdentifiantsAbsents, rules_qa.ReponseIncomplete) as e:
+        reponse = rules_qa.repondre(
+            question, index, reglages, creer_fournisseur(reglages), limite=limite
+        )
+    except (IdentifiantsAbsents, ReponseIncomplete, ErreurFournisseur) as e:
         print(f"Erreur : {e}", file=sys.stderr)
-        return 1
-    except anthropic.APIError as e:
-        print(f"Erreur de l'API Anthropic : {e.message}", file=sys.stderr)
         return 1
     print(rules_qa.formater_reponse(reponse))
     return 0
