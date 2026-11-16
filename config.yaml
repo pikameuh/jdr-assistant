@@ -29,7 +29,7 @@
 # --- Dialogue avec un PNJ (commande : uv run parler) --------------------------
 dialogue:
   fournisseur: anthropic
-  modele: claude-sonnet-5-5
+  modele: claude-haiku-5-5
   niveau_de_reflexion: defaut
 
   # Longueur maximale d'une réponse du modèle, réflexion comprise, en jetons

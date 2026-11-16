@@ -305,7 +305,7 @@ Mettez les textes qui contiennent des espaces **entre guillemets**.
 **Pendant la conversation :**
 
 ```
-Vous parlez à Orla Venn (anthropic, modèle : claude-sonnet-5-5).
+Vous parlez à Orla Venn (anthropic, modèle : claude-haiku-5-5).
 /fait <texte> : ajouter un fait à la scène ; /quitter : sortir.
 Kael > Combien pour une pile énergétique ?
 Orla Venn > *tapote son terminal de poignet* …
@@ -365,7 +365,7 @@ Tous les réglages sont dans **un seul fichier** : `config.yaml`, à la racine d
 | Réglage | Rôle | Valeur fournie |
 |---|---|---|
 | `fournisseur` | Qui joue les PNJ : `anthropic` ou `openai`. | `anthropic` |
-| `modele` | Le modèle qui joue les PNJ ; il doit appartenir au fournisseur choisi (voir le tableau ci-dessous). | `claude-sonnet-5-5` |
+| `modele` | Le modèle qui joue les PNJ ; il doit appartenir au fournisseur choisi (voir le tableau ci-dessous). | `claude-haiku-5-5` |
 | `niveau_de_reflexion` | Combien le modèle réfléchit avant de répondre : `defaut`, `bas`, `moyen`, `eleve`, `tres_eleve`, `maximum`. Plus c'est élevé, plus c'est soigné, lent et cher. `defaut` = le réglage standard du modèle. | `defaut` |
 | `longueur_max_reponse` | Taille maximale d'une réponse, réflexion comprise, en jetons (un jeton est un petit morceau de mot). Entre 1 et 128000. | `16000` |
 | `recherches_max_par_replique` | Nombre maximal de consultations des livres pour une seule réplique. Au-delà, la réplique est abandonnée avec un message. Entre 1 et 20. | `4` |
@@ -421,8 +421,8 @@ Modèles Anthropic (`fournisseur: anthropic`) :
 
 | Modèle (valeur à écrire) | En résumé | Prix (entrée / sortie, par million de jetons) |
 |---|---|---|
-| `claude-haiku-5-5` | Rapide et très économique ; le plus susceptible de mal tenir un secret ou d'oublier de consulter les règles. | 0,10 $ / 0,50 $ |
-| `claude-sonnet-5-5` | Bon équilibre qualité / prix. **Réglage fourni.** | 2 $ / 10 $ |
+| `claude-haiku-5-5` | Rapide et très économique ; le plus susceptible de mal tenir un secret ou d'oublier de consulter les règles. **Réglage fourni pour le dialogue** (20 fois moins cher que Sonnet). | 0,10 $ / 0,50 $ |
+| `claude-sonnet-5-5` | Bon équilibre qualité / prix. **Réglage fourni pour les questions de règles.** Pour le dialogue, à choisir si un PNJ joué par Haiku révèle ses secrets ou invente des règles. | 2 $ / 10 $ |
 | `claude-opus-5-5` | Le plus soigné de la gamme Opus. | 4 $ / 20 $ |
 | `claude-opus-4-8` | Génération précédente d'Opus. | 5 $ / 25 $ |
 

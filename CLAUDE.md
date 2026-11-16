@@ -14,7 +14,7 @@ Assistant du meneur pendant une partie : produire les répliques des PNJ en coh�
 - Langage : **Python**.
 - IHM : **CLI** et **interface web locale** (FastAPI + page HTML/JS sans étape de build ni CDN) → le cœur reste indépendant de l'IHM.
 - Règles : **index SQLite FTS5** interrogé par un outil `rechercher_regle` (aucun service externe).
-- LLM : **fournisseur et modèle choisis dans `config.yaml`**, séparément pour le dialogue et les questions de règles : Anthropic (API Messages ; défaut `claude-sonnet-5-5`) ou OpenAI (API Responses). Réflexion, cache, tool use dans les deux cas.
+- LLM : **fournisseur et modèle choisis dans `config.yaml`**, séparément pour le dialogue et les questions de règles : Anthropic (API Messages ; défaut `claude-haiku-5-5` pour le dialogue, `claude-sonnet-5-5` pour les questions de règles) ou OpenAI (API Responses). Réflexion, cache, tool use dans les deux cas.
 
 ## Configuration
 Tout réglage modifiable à la main est dans **`config.yaml`** (racine), noms en français, commentés, pensé pour un non-développeur : modèles, niveau de réflexion, longueurs, nombre de passages, **consignes données au modèle**, chemins. Aucune valeur par défaut cachée dans le code : un réglage manquant ou mal écrit est refusé avec un message en français. Le cœur reçoit ses réglages en paramètre ; seules les commandes lisent le fichier (`core/config.py`). Les tests utilisent leur propre configuration (`tests/reglages_test.py`), pour que l'édition de `config.yaml` ne les casse pas.
