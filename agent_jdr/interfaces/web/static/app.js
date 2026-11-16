@@ -513,6 +513,7 @@ function carteUsage(section, u, catalogue) {
   const choixFournisseur = el("select", {}, Object.entries(FOURNISSEURS).map(([v, t]) => el("option", { value: v, textContent: t, selected: v === u.fournisseur })));
   const choixModele = el("select");
   const description = el("div", { class: "description-modele" });
+  const avertissement = el("div", { class: "avertissement-modele cache", role: "note" });
   const cle = el("input", { type: "password", autocomplete: "off", placeholder: "Nouvelle clé (laisser vide pour garder l'actuelle)" });
   const indication = el("div", { class: "petit" });
   let effacer = false;
@@ -530,6 +531,8 @@ function carteUsage(section, u, catalogue) {
   function decrire() {
     const m = choixModele._modeles?.find((x) => x.nom === choixModele.value);
     description.textContent = m ? [m.description, m.prix && `${m.prix} par million de jetons (entrée / sortie)`].filter(Boolean).join(" · ") : "";
+    avertissement.textContent = m?.avertissement ? `⚠ ${m.avertissement}` : "";
+    avertissement.classList.toggle("cache", !m?.avertissement);
   }
   choixFournisseur.addEventListener("change", remplirModeles);
   choixModele.addEventListener("change", decrire);
@@ -562,7 +565,7 @@ function carteUsage(section, u, catalogue) {
     el("div", { class: "petit", textContent: USAGES[section].detail }),
     el("div", { class: "champs" },
       el("label", {}, "Fournisseur", choixFournisseur),
-      el("label", {}, "Modèle", choixModele, description),
+      el("label", {}, "Modèle", choixModele, description, avertissement),
       el("div", {}, el("div", { class: "petit", textContent: "Clé API actuelle" }), el("div", { class: "cle-actuelle" }, etatCle(u))),
       el("label", {}, "Nouvelle clé API", cle, indication)),
     el("div", { class: "ligne-actions" }, boutonEffacer, el("span", { class: "espace" }), enregistrer));

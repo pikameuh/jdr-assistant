@@ -236,6 +236,7 @@ class ModeleCatalogue(_Strict):
     nom: str = Field(pattern=r"^[a-z0-9][a-z0-9.-]*$")
     description: str = ""
     prix: str = ""
+    avertissement: str = ""  # affiché quand le modèle est choisi (ex. modèle léger)
 
 
 class Catalogue(_Strict):

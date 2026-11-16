@@ -6,12 +6,15 @@
 #  Les modèles Anthropic commencent par « claude- ».
 #  Prix par million de jetons, entrée / sortie, relevés le 2026-11-16.
 #  Rangés du moins cher au plus cher.
+#  avertissement (facultatif) : affiché dans la fenêtre Config quand le
+#  modèle est choisi, par exemple pour signaler un modèle léger.
 # =============================================================================
 
 anthropic:
   - nom: claude-haiku-5-5
     description: rapide et très économique
     prix: 0,10 $ / 0,50 $
+    avertissement: "Modèle léger : plus de risque qu'un PNJ révèle un secret, sorte de son personnage ou oublie de consulter les règles (et invente alors un chiffre), et de réponses de règles moins précises. Non mesuré pour l'instant. Si cela arrive, choisissez un modèle plus puissant."
   - nom: claude-sonnet-5-5
     description: bon équilibre qualité / prix
     prix: 2 $ / 10 $
@@ -26,6 +29,7 @@ openai:
   - nom: gpt-6-luna
     description: économique, gros volumes
     prix: 0,10 $ / 0,50 $
+    avertissement: "Modèle léger : plus de risque qu'un PNJ révèle un secret, sorte de son personnage ou oublie de consulter les règles (et invente alors un chiffre), et de réponses de règles moins précises. Non mesuré pour l'instant. Si cela arrive, choisissez un modèle plus puissant."
   - nom: gpt-6.1-terra
     description: rapide et efficace
     prix: 1 $ / 5 $

@@ -272,7 +272,7 @@ Il n'est pas possible de retirer un PDF depuis l'interface : supprimez-le du dos
 
 **Onglet « Modèles et clés API »** : une carte par usage, « Questions de règles » et « Dialogue avec les PNJ ». Pour chacun :
 
-- **Fournisseur** et **Modèle** : menus déroulants. La liste des modèles, avec leur description et leur prix, vient du fichier `modeles.yaml` ([section 9](#choisir-le-fournisseur-et-le-modèle)).
+- **Fournisseur** et **Modèle** : menus déroulants. La liste des modèles, avec leur description et leur prix, vient du fichier `modeles.yaml` ([section 9](#choisir-le-fournisseur-et-le-modèle)). Quand vous choisissez un **modèle léger** (`claude-haiku-5-5`, `gpt-6-luna`), un encadré ⚠ rappelle le risque : un PNJ qui révèle un secret, sort de son personnage ou oublie de consulter les règles, et des réponses de règles moins précises. Ce risque n'est pas encore mesuré ; si vous le constatez en partie, choisissez un modèle plus puissant.
 - **Clé API actuelle** : affichée en partie masquée (par exemple `sk-an***AB`), jamais en entier. L'étiquette indique d'où elle vient : « fichier de secrets », le nom de la variable d'environnement (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`), ou « aucune clé ».
 - **Nouvelle clé API** : collez une clé pour la remplacer ; laissez vide pour garder l'actuelle. **Effacer la clé** la retire du fichier de secrets.
 - **Enregistrer** : écrit le fournisseur et le modèle dans `config.yaml` (les commentaires du fichier sont conservés) et la clé dans `secrets.yaml`.
@@ -415,7 +415,7 @@ Les chemins sont relatifs au dossier qui contient `config.yaml`. Un chemin comme
 
 Chaque section (`dialogue`, `questions_de_regles`) a son propre `fournisseur` et son propre `modele`. Le modèle doit appartenir au fournisseur : un modèle Anthropic commence toujours par `claude-`, un modèle OpenAI jamais. Sinon, la commande refuse de démarrer et le signale.
 
-Les modèles disponibles sont listés dans le fichier **`modeles.yaml`**, à la racine du projet. C'est la liste que propose l'interface web. Pour proposer un nouveau modèle dans l'interface, ajoutez un bloc `- nom: …` (avec `description` et `prix` si vous voulez) sous son fournisseur ; l'interface refuse un modèle absent de cette liste. Dans `config.yaml` modifié à la main, tout nom de modèle du bon fournisseur est accepté.
+Les modèles disponibles sont listés dans le fichier **`modeles.yaml`**, à la racine du projet. C'est la liste que propose l'interface web. Pour proposer un nouveau modèle dans l'interface, ajoutez un bloc `- nom: …` (avec `description`, `prix` et `avertissement` si vous voulez) sous son fournisseur ; `avertissement` est un texte affiché dans un encadré ⚠ quand ce modèle est choisi dans l'interface ; l'interface refuse un modèle absent de cette liste. Dans `config.yaml` modifié à la main, tout nom de modèle du bon fournisseur est accepté.
 
 Modèles Anthropic (`fournisseur: anthropic`) :
 

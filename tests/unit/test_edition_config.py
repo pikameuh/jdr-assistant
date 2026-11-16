@@ -141,6 +141,9 @@ def test_catalogue_du_projet_valide():
     catalogue = charger_catalogue(charger_config().fichiers.catalogue_des_modeles)
     assert "claude-sonnet-5-5" in [m.nom for m in catalogue.anthropic]
     assert all(not m.nom.startswith("claude-") for m in catalogue.openai)
+    # Les modèles légers portent un avertissement affiché par la fenêtre Config.
+    legers = {m.nom for f in ("anthropic", "openai") for m in catalogue.modeles(f) if m.avertissement}
+    assert legers == {"claude-haiku-5-5", "gpt-6-luna"}
 
 
 def test_modeles_par_defaut_presents_dans_le_catalogue():

@@ -111,6 +111,9 @@ def test_config_cles_jamais_envoyees_en_clair(web):
     assert usages["dialogue"]["cle_masquee"] == "sk-an***10"
     assert usages["dialogue"]["cle_source"] == "fichier"
     assert "claude-sonnet-5-5" in [m["nom"] for m in rep.json()["catalogue"]["anthropic"]]
+    modeles = {m["nom"]: m for m in rep.json()["catalogue"]["anthropic"]}
+    assert "Modèle léger" in modeles["claude-haiku-5-5"]["avertissement"]
+    assert modeles["claude-sonnet-5-5"]["avertissement"] == ""
 
 
 def test_config_cle_depuis_l_environnement(tmp_path, fabrique, monkeypatch):
