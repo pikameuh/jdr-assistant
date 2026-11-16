@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, model_validator
 
 RACINE = Path(__file__).resolve().parents[2]
 CONFIG_DEFAUT = RACINE / "config.yaml"
@@ -107,6 +107,7 @@ class Fichiers(_Strict):
     index_des_regles: Path
     dossier_des_pnj: Path
     dossier_des_pdf: Path
+    secrets: Path
 
 
 class Config(_Strict):
@@ -115,24 +116,73 @@ class Config(_Strict):
     fichiers: Fichiers
 
 
-def charger_config(chemin: Path = CONFIG_DEFAUT) -> Config:
-    """Lit et valide la configuration. Chemins relatifs = relatifs au dossier du fichier."""
+class Secrets(_Strict):
+    """Clés API du projet, par usage. Vide = repli sur la variable d'environnement du fournisseur."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    cle_recherche: SecretStr | None = Field(default=None, alias="recherche-apikey")
+    cle_personas: SecretStr | None = Field(default=None, alias="personas-apikey")
+
+    @staticmethod
+    def _valeur(cle: SecretStr | None) -> str | None:
+        return (cle.get_secret_value().strip() or None) if cle else None
+
+    @property
+    def recherche(self) -> str | None:
+        """Clé des questions de règles (`uv run search`)."""
+        return self._valeur(self.cle_recherche)
+
+    @property
+    def personas(self) -> str | None:
+        """Clé du dialogue avec les PNJ (`uv run parler`)."""
+        return self._valeur(self.cle_personas)
+
+
+# Nom de l'entrée du fichier de secrets pour chaque usage (affiché dans les messages).
+ENTREE_SECRETS = {"questions_de_regles": "recherche-apikey", "dialogue": "personas-apikey"}
+
+
+def conseil_cle(section: str, fichier: Path) -> str:
+    """Où renseigner la clé d'un usage (affiché quand elle manque ou est refusée)."""
+    return f"Renseignez la clé « {ENTREE_SECRETS[section]} » dans {fichier} (voir MANUEL.md, section 4)."
+
+
+def _lire_yaml(chemin: Path) -> Any:
     try:
-        donnees = yaml.safe_load(chemin.read_text(encoding="utf-8"))
+        return yaml.safe_load(chemin.read_text(encoding="utf-8"))
     except OSError as e:
         raise ConfigInvalide(f"{chemin} : lecture impossible ({e.strerror})") from e
     except yaml.YAMLError as e:
         raise ConfigInvalide(f"{chemin.name} : syntaxe YAML incorrecte\n{e}") from e
+
+
+def _valider(modele: type[BaseModel], donnees: Any, chemin: Path, forme: str) -> Any:
     if not isinstance(donnees, dict):
-        raise ConfigInvalide(f"{chemin.name} : le fichier doit contenir des sections « nom: valeur »")
+        raise ConfigInvalide(f"{chemin.name} : le fichier doit contenir des {forme} « nom: valeur »")
     try:
-        config = Config.model_validate(donnees)
+        return modele.model_validate(donnees)
     except ValidationError as e:
         details = "\n".join(
             f"  - {' > '.join(map(str, err['loc'])) or '(racine)'} : {_message_en_francais(err)}"
             for err in e.errors()
         )
         raise ConfigInvalide(f"{chemin.name} : réglages incorrects\n{details}") from e
+
+
+def charger_secrets(chemin: Path) -> Secrets:
+    """Lit le fichier de secrets. Fichier absent ou vide = aucune clé (repli sur l'environnement)."""
+    if not chemin.is_file():
+        return Secrets()
+    donnees = _lire_yaml(chemin)
+    if donnees is None:
+        return Secrets()
+    return _valider(Secrets, donnees, chemin, "lignes")
+
+
+def charger_config(chemin: Path = CONFIG_DEFAUT) -> Config:
+    """Lit et valide la configuration. Chemins relatifs = relatifs au dossier du fichier."""
+    config = _valider(Config, _lire_yaml(chemin), chemin, "sections")
 
     base = chemin.resolve().parent
     fichiers = config.fichiers.model_copy(

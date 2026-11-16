@@ -30,9 +30,15 @@ CACHE = {"type": "ephemeral"}
 
 
 class FournisseurAnthropic:
-    def __init__(self, reglages: ReglagesModele, client: anthropic.Anthropic | None = None) -> None:
+    def __init__(
+        self,
+        reglages: ReglagesModele,
+        client: anthropic.Anthropic | None = None,
+        cle_api: str | None = None,
+    ) -> None:
         self.reglages = reglages
         self._client = client
+        self._cle_api = cle_api
 
     # --- Appel ------------------------------------------------------------------
 
@@ -49,7 +55,11 @@ class FournisseurAnthropic:
 
     def appeler(self, params: dict[str, Any]) -> Any:
         """`messages.create`, erreurs converties en erreurs communes, réponse vérifiée."""
-        client = self._client or anthropic.Anthropic()
+        if self._client is None:
+            self._client = (
+                anthropic.Anthropic(api_key=self._cle_api) if self._cle_api else anthropic.Anthropic()
+            )
+        client = self._client
         try:
             message = client.messages.create(**params)
         except anthropic.AuthenticationError as e:
@@ -61,8 +71,8 @@ class FournisseurAnthropic:
             if "authentication method" not in str(e):
                 raise
             raise IdentifiantsAbsents(
-                "Aucun identifiant Anthropic trouvé. Définir la variable ANTHROPIC_API_KEY "
-                "(ou se connecter avec `ant auth login`)."
+                "Aucun identifiant Anthropic trouvé : clé absente du fichier de secrets "
+                "et variable ANTHROPIC_API_KEY non définie."
             ) from e
         if message.stop_reason == "refusal":
             raise ReponseIncomplete(MESSAGE_REFUS)

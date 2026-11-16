@@ -75,59 +75,68 @@ La première fois, le téléchargement peut prendre un moment. Si la commande se
 
 ## 4. Les clés API (une seule fois)
 
-Une **clé API** est un mot de passe qui permet à l'assistant d'interroger un fournisseur et de facturer votre compte. Il vous faut la clé de **chaque fournisseur utilisé** dans `config.yaml` : par défaut, seulement Anthropic. **Ne donnez jamais une clé à personne et ne la mettez jamais dans le dossier du projet.**
+Une **clé API** est un mot de passe qui permet à l'assistant d'interroger un fournisseur et de facturer votre compte. Il vous faut la clé de **chaque fournisseur utilisé** dans `config.yaml` : par défaut, seulement Anthropic. **Ne donnez jamais une clé à personne.**
 
-### Clé Anthropic
+Les clés se rangent dans un fichier propre au projet, **`secrets.yaml`**, à côté de `config.yaml`. Ce fichier reste sur votre ordinateur : il n'est jamais envoyé sur git. Il contient deux entrées, une par usage :
 
-**Étape 1 : créer la clé.**
+| Entrée | Utilisée par | Clé à mettre |
+|---|---|---|
+| `recherche-apikey` | les questions de règles (`uv run search`) | celle du fournisseur choisi dans la section `questions_de_regles` de `config.yaml` |
+| `personas-apikey` | le dialogue avec les PNJ (`uv run parler`) | celle du fournisseur choisi dans la section `dialogue` de `config.yaml` |
+
+Avec la configuration fournie, les deux usages passent par Anthropic : mettez la même clé Anthropic dans les deux entrées.
+
+### Étape 1 : créer la clé
+
+**Clé Anthropic :**
 
 1. Allez sur <https://console.anthropic.com> et connectez-vous (ou créez un compte).
 2. Ajoutez des crédits ou un moyen de paiement dans la partie facturation de la console.
 3. Ouvrez la page **API Keys**, puis cliquez sur **Create Key**. Donnez-lui un nom, par exemple `assistant-jdr`.
 4. **Copiez la clé tout de suite** : elle commence par `sk-ant-` et ne sera plus affichée ensuite.
 
-**Étape 2 : l'enregistrer sur votre ordinateur.** Trouvez d'abord quel terminal vous utilisez :
-
-```sh
-echo $SHELL
-```
-
-Si la réponse se termine par `zsh` (cas par défaut sous macOS), tapez la commande ci-dessous en remplaçant `sk-ant-VOTRE_CLE` par votre clé :
-
-```sh
-echo 'export ANTHROPIC_API_KEY=sk-ant-VOTRE_CLE' >> ~/.zshrc
-```
-
-Si la réponse se termine par `bash`, remplacez `~/.zshrc` par `~/.bashrc` dans la commande.
-
-Puis **fermez le terminal et rouvrez-en un nouveau**.
-
-**Étape 3 : vérifier.**
-
-```sh
-echo $ANTHROPIC_API_KEY | cut -c1-7
-```
-
-La réponse doit être `sk-ant-`. Si elle est vide, la clé n'est pas enregistrée : reprenez l'étape 2, et vérifiez que vous avez bien rouvert un terminal.
-
-### Clé OpenAI (seulement si vous choisissez OpenAI)
+**Clé OpenAI (seulement si vous choisissez OpenAI) :**
 
 1. Allez sur <https://platform.openai.com> et connectez-vous (ou créez un compte).
 2. Ajoutez des crédits ou un moyen de paiement dans la partie facturation.
 3. Ouvrez la page des clés API (**API keys**), puis créez une nouvelle clé. **Copiez-la tout de suite** : elle commence par `sk-`.
-4. Enregistrez-la comme la clé Anthropic, mais sous le nom `OPENAI_API_KEY` (remplacez `~/.zshrc` par `~/.bashrc` si votre terminal est `bash`) :
+
+### Étape 2 : créer le fichier secrets.yaml
+
+Le projet fournit un modèle, `secrets.exemple.yaml`. Dans le terminal, placé dans le dossier du projet, copiez-le sous le nom `secrets.yaml` :
 
 ```sh
-echo 'export OPENAI_API_KEY=sk-VOTRE_CLE' >> ~/.zshrc
+cp -n secrets.exemple.yaml secrets.yaml
 ```
 
-5. Fermez le terminal, rouvrez-en un, puis vérifiez :
+(`-n` : si `secrets.yaml` existe déjà, il n'est pas écrasé.)
+
+### Étape 3 : y coller les clés
+
+Ouvrez `secrets.yaml` avec un éditeur de texte. Collez chaque clé entre les guillemets, après les deux-points :
+
+```yaml
+recherche-apikey: "sk-ant-VOTRE_CLE"
+personas-apikey: "sk-ant-VOTRE_CLE"
+```
+
+Enregistrez. Gardez les guillemets, ne changez pas les noms des entrées, et ne laissez pas d'espace en début de ligne.
+
+### Étape 4 : vérifier
 
 ```sh
-echo $OPENAI_API_KEY | cut -c1-3
+uv run search "faire le plein"
 ```
 
-La réponse doit être `sk-`.
+Si une réponse s'affiche, la clé `recherche-apikey` fonctionne (comme toute réponse du modèle, cette question est payante). Pour `personas-apikey`, lancez une conversation ([section 6](#6-parler-à-un-pnj)). En cas de message d'erreur, voir la [section 11](#11-en-cas-de-problème).
+
+### Remplacer ou retirer une clé
+
+Remplacez la clé dans `secrets.yaml` et enregistrez : elle sert dès la commande suivante. Si vous changez de fournisseur dans `config.yaml`, changez aussi la clé de l'usage concerné.
+
+**Ancienne méthode, toujours acceptée.** Une entrée laissée vide (`""`) ou un fichier `secrets.yaml` absent : l'assistant cherche alors la clé dans la variable d'environnement du fournisseur (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`), comme dans les versions précédentes. Une clé écrite dans `secrets.yaml` est prioritaire. Si vous passez au fichier, vous pouvez retirer la ligne `export …_API_KEY=…` de votre `~/.zshrc` (ou `~/.bashrc`).
+
+**Emplacement du fichier.** Le réglage `secrets` de la section `fichiers` de `config.yaml` indique où se trouve le fichier ([section 8](#section-fichiers)). Si vous le déplacez hors du dossier du projet, assurez-vous de ne jamais le partager.
 
 ## 5. Les livres de règles et l'index (une seule fois)
 
@@ -253,6 +262,7 @@ Tous les réglages sont dans **un seul fichier** : `config.yaml`, à la racine d
 | `index_des_regles` | L'index créé à la [section 5](#5-les-livres-de-règles-et-lindex-une-seule-fois). | `data/rules.db` |
 | `dossier_des_pnj` | Le dossier qui contient les fiches PNJ. | `agent_jdr/core/personas` |
 | `dossier_des_pdf` | Le dossier des livres PDF (utilisé seulement pour créer l'index). | `rules/MA - Manuel des joueurs 1.5` |
+| `secrets` | Le fichier des clés API ([section 4](#4-les-clés-api-une-seule-fois)). | `secrets.yaml` |
 
 Les chemins sont relatifs au dossier qui contient `config.yaml`. Un chemin commençant par `/` est un chemin complet.
 
@@ -294,7 +304,7 @@ questions_de_regles:
   …
 ```
 
-N'oubliez pas la clé du fournisseur choisi ([section 4](#4-les-clés-api-une-seule-fois)). Au démarrage, `uv run parler` affiche le fournisseur et le modèle utilisés, par exemple `(openai, modèle : gpt-6.1-sol)` : c'est une bonne façon de vérifier que votre changement est pris en compte.
+N'oubliez pas de mettre dans `secrets.yaml` la clé du fournisseur choisi pour cet usage ([section 4](#4-les-clés-api-une-seule-fois)). Au démarrage, `uv run parler` affiche le fournisseur et le modèle utilisés, par exemple `(openai, modèle : gpt-6.1-sol)` : c'est une bonne façon de vérifier que votre changement est pris en compte.
 
 ### Modifier les consignes
 
@@ -385,9 +395,10 @@ Le coût réel d'une partie n'a pas encore été mesuré. Pour le suivre, consul
 | Message affiché | Cause | Solution |
 |---|---|---|
 | `command not found: uv` ou `commande introuvable` | uv n'est pas installé, ou le terminal n'a pas été rouvert après l'installation. | [Section 3](#3-installation-une-seule-fois), puis rouvrir le terminal. |
-| `Erreur : Aucun identifiant Anthropic trouvé. Définir la variable ANTHROPIC_API_KEY …` | La clé n'est pas enregistrée dans ce terminal. | [Section 4](#4-les-clés-api-une-seule-fois), étape 3. |
-| `Erreur : Aucune clé OpenAI trouvée. Définir la variable OPENAI_API_KEY.` | Un réglage utilise OpenAI, mais sa clé n'est pas enregistrée dans ce terminal. | [Section 4](#4-les-clés-api-une-seule-fois), clé OpenAI. |
-| `Identifiants Anthropic refusés : …` ou `Clé OpenAI refusée : …` | Clé mal copiée, supprimée ou désactivée. | Créez une nouvelle clé et remplacez l'ancienne dans `~/.zshrc` (ou `~/.bashrc`). |
+| `Erreur : Aucun identifiant Anthropic trouvé : clé absente du fichier de secrets …` ou `Erreur : Aucune clé OpenAI trouvée : …`, suivi de `Renseignez la clé « … » dans …` | L'entrée nommée de `secrets.yaml` est vide, ou le fichier n'existe pas. | Collez la clé dans l'entrée indiquée, dans le fichier indiqué ([section 4](#4-les-clés-api-une-seule-fois), étapes 2 et 3). |
+| `Identifiants Anthropic refusés : …` ou `Clé OpenAI refusée : …` | Clé mal copiée, supprimée, désactivée, ou d'un autre fournisseur que celui choisi dans `config.yaml` pour cet usage. | Recopiez la clé, ou créez-en une nouvelle et remplacez l'ancienne dans `secrets.yaml`. |
+| `Erreur : configuration : secrets.yaml : réglages incorrects` (ou `Erreur de configuration : secrets.yaml : …` avec `search`) suivi de `… : réglage inconnu (faute de frappe ?)` | Nom d'entrée mal écrit dans `secrets.yaml`. | Écrivez exactement `recherche-apikey` et `personas-apikey`. |
+| `… secrets.yaml : syntaxe YAML incorrecte` | Guillemet non fermé, espace en début de ligne ou tabulation dans `secrets.yaml`. | Corrigez la ligne indiquée (`line`), ou recopiez `secrets.exemple.yaml` et recollez les clés. |
 | `Erreur : API Anthropic : …` ou `Erreur : API OpenAI : …` mentionnant le crédit ou la facturation | Crédits épuisés chez ce fournisseur. | Ajoutez des crédits sur son site. |
 | `Erreur : API Anthropic : …` ou `Erreur : API OpenAI : …` mentionnant le modèle (`model`) | Nom de modèle mal écrit ou inexistant dans `config.yaml`. | Recopiez un nom exact du [tableau des modèles](#choisir-le-fournisseur-et-le-modèle). |
 | `… : le modèle « … » n'est pas un modèle Anthropic …` ou `… est un modèle Anthropic, pas OpenAI …` | `fournisseur` et `modele` ne correspondent pas dans une section de `config.yaml`. | Mettez un modèle du bon fournisseur, ou changez le fournisseur. |

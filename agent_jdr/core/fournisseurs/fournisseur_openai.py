@@ -89,9 +89,15 @@ def _normaliser(texte: str) -> str:
 
 
 class FournisseurOpenAI:
-    def __init__(self, reglages: ReglagesModele, client: openai.OpenAI | None = None) -> None:
+    def __init__(
+        self,
+        reglages: ReglagesModele,
+        client: openai.OpenAI | None = None,
+        cle_api: str | None = None,
+    ) -> None:
         self.reglages = reglages
         self._client = client
+        self._cle_api = cle_api
 
     # --- Appel ------------------------------------------------------------------
 
@@ -107,10 +113,13 @@ class FournisseurOpenAI:
     def _client_ou_defaut(self) -> openai.OpenAI:
         if self._client is None:
             try:
-                self._client = openai.OpenAI()
+                self._client = (
+                    openai.OpenAI(api_key=self._cle_api) if self._cle_api else openai.OpenAI()
+                )
             except openai.OpenAIError as e:  # levée à la création quand la clé manque
                 raise IdentifiantsAbsents(
-                    "Aucune clé OpenAI trouvée. Définir la variable OPENAI_API_KEY."
+                    "Aucune clé OpenAI trouvée : clé absente du fichier de secrets "
+                    "et variable OPENAI_API_KEY non définie."
                 ) from e
         return self._client
 

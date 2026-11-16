@@ -9,7 +9,7 @@ from agent_jdr.core import rules_index, rules_qa
 from agent_jdr.core.rules_index import Passage, RulesIndex, construire_index
 from agent_jdr.core.fournisseurs.base import IdentifiantsAbsents
 from agent_jdr.core.fournisseurs.fournisseur_anthropic import FournisseurAnthropic
-from tests.reglages_test import CONFIG_TEST
+from tests.reglages_test import CONFIG_TEST, ecrire_config
 
 REGLAGES = CONFIG_TEST.questions_de_regles
 
@@ -106,7 +106,8 @@ def test_autre_typeerror_non_masquee(index):
 
 def test_cli_brut_sans_appel_llm(chemin_db, capsys, monkeypatch):
     monkeypatch.setattr(anthropic, "Anthropic", MagicMock(side_effect=AssertionError("appel LLM")))
-    assert rules_index.main(["search", "grenade", "--brut", "--db", str(chemin_db)]) == 0
+    config = ecrire_config(chemin_db.parent)
+    assert rules_index.main(["search", "grenade", "--brut", "--db", str(chemin_db), "--config", str(config)]) == 0
     sortie = capsys.readouterr().out
     assert "Manuel des joueurs, p. 174 — Dispersion" in sortie
 
@@ -114,7 +115,8 @@ def test_cli_brut_sans_appel_llm(chemin_db, capsys, monkeypatch):
 def test_cli_affiche_reponse_et_sources(chemin_db, capsys, monkeypatch, message_factice):
     message = message_factice([("Elle dévie.", [(0, "dévie selon le diagramme")])])
     monkeypatch.setattr(anthropic, "Anthropic", lambda: client_mock(message))
-    assert rules_index.main(["search", "grenade", "--db", str(chemin_db)]) == 0
+    config = ecrire_config(chemin_db.parent)
+    assert rules_index.main(["search", "grenade", "--db", str(chemin_db), "--config", str(config)]) == 0
     sortie = capsys.readouterr().out
     assert sortie.startswith("Elle dévie. [1]")
     assert "Sources\n[1] Manuel des joueurs, p. 174 — Dispersion\n    « dévie selon le diagramme »" in sortie
@@ -125,7 +127,30 @@ def test_cli_sans_identifiants_pas_de_trace(chemin_db, capsys, monkeypatch):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("HOME", str(chemin_db.parent))  # aucun profil `ant` sur disque
     monkeypatch.setenv("XDG_CONFIG_HOME", str(chemin_db.parent))
-    assert rules_index.main(["search", "grenade", "--db", str(chemin_db)]) == 1
+    config = ecrire_config(chemin_db.parent)
+    assert rules_index.main(["search", "grenade", "--db", str(chemin_db), "--config", str(config)]) == 1
     erreur = capsys.readouterr().err
     assert erreur.startswith("Erreur : Aucun identifiant Anthropic trouvé")
+    assert f"Renseignez la clé « recherche-apikey » dans {chemin_db.parent / 'secrets.yaml'}" in erreur
     assert "Traceback" not in erreur
+
+
+def test_cli_search_utilise_la_cle_recherche(chemin_db, capsys, monkeypatch, message_factice):
+    cles = []
+
+    def faux_anthropic(**kw):
+        cles.append(kw.get("api_key"))
+        return client_mock(message_factice(["Elle dévie."]))
+
+    monkeypatch.setattr(anthropic, "Anthropic", faux_anthropic)
+    config = ecrire_config(
+        chemin_db.parent, {"recherche-apikey": "sk-ant-regles", "personas-apikey": "sk-ant-pnj"}
+    )
+    assert rules_index.main(["search", "grenade", "--db", str(chemin_db), "--config", str(config)]) == 0
+    assert cles == ["sk-ant-regles"]
+
+
+def test_cli_brut_ignore_le_fichier_de_secrets(chemin_db, capsys):
+    # Recherche sans modèle : un fichier de secrets incorrect ne doit pas la bloquer.
+    config = ecrire_config(chemin_db.parent, {"inconnue": "x"})
+    assert rules_index.main(["search", "grenade", "--brut", "--db", str(chemin_db), "--config", str(config)]) == 0

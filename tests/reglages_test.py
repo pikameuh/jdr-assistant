@@ -1,6 +1,10 @@
 """Configuration de test, indépendante de `config.yaml` (que l'utilisateur modifie à la main)."""
 
-from agent_jdr.core.config import Config
+from pathlib import Path
+
+import yaml
+
+from agent_jdr.core.config import CONFIG_DEFAUT, Config
 
 CONSIGNES_DIALOGUE = "Consignes de dialogue de test."
 CONSIGNES_REGLES = "Consignes de règles de test."
@@ -28,6 +32,24 @@ CONFIG_TEST = Config.model_validate(
             "index_des_regles": "/inexistant/rules.db",
             "dossier_des_pnj": "/inexistant/personas",
             "dossier_des_pdf": "/inexistant/pdf",
+            "secrets": "/inexistant/secrets.yaml",
         },
     }
 )
+
+
+def ecrire_config(dossier: Path, secrets: dict | None = None, **sections: dict) -> Path:
+    """Copie de config.yaml dans `dossier`, chemins absolus vers le projet, sauf le fichier
+    de secrets : `dossier/secrets.yaml`, écrit seulement si `secrets` est donné. Ainsi les
+    tests des commandes ne lisent jamais le vrai secrets.yaml. `sections` : réglages modifiés."""
+    donnees = yaml.safe_load(CONFIG_DEFAUT.read_text(encoding="utf-8"))
+    racine = CONFIG_DEFAUT.parent
+    donnees["fichiers"] = {k: str(racine / v) for k, v in donnees["fichiers"].items()}
+    donnees["fichiers"]["secrets"] = str(dossier / "secrets.yaml")
+    if secrets is not None:
+        (dossier / "secrets.yaml").write_text(yaml.safe_dump(secrets), encoding="utf-8")
+    for nom, maj in sections.items():
+        donnees[nom].update(maj)
+    chemin = dossier / "config.yaml"
+    chemin.write_text(yaml.safe_dump(donnees, allow_unicode=True), encoding="utf-8")
+    return chemin

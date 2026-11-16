@@ -10,7 +10,13 @@ import argparse
 import sys
 from pathlib import Path
 
-from agent_jdr.core.config import CONFIG_DEFAUT, ConfigInvalide, charger_config
+from agent_jdr.core.config import (
+    CONFIG_DEFAUT,
+    ConfigInvalide,
+    charger_config,
+    charger_secrets,
+    conseil_cle,
+)
 from agent_jdr.core.dialogue_engine import MoteurDialogue
 from agent_jdr.core.fournisseurs import creer_fournisseur
 from agent_jdr.core.fournisseurs.base import (
@@ -42,6 +48,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config = charger_config(args.config)
+        secrets = charger_secrets(config.fichiers.secrets)
     except ConfigInvalide as e:
         _erreur(f"configuration : {e}")
         return 1
@@ -75,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
 
     with index:
         reglages = config.dialogue
-        moteur = MoteurDialogue(persona, scene, index, reglages, creer_fournisseur(reglages))
+        moteur = MoteurDialogue(persona, scene, index, reglages, creer_fournisseur(reglages, cle_api=secrets.personas))
         print(f"Vous parlez à {persona.nom} ({reglages.fournisseur}, modèle : {reglages.modele}).")
         print("/fait <texte> : ajouter un fait à la scène ; /quitter : sortir.")
         while True:
@@ -99,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 replique = moteur.repondre(ligne, pj=args.pj)
             except IdentifiantsAbsents as e:
-                _erreur(str(e))
+                _erreur(f"{e}\n{conseil_cle('dialogue', config.fichiers.secrets)}")
                 return 1
             except ReponseIncomplete as e:
                 _erreur(f"{e} (tour non enregistré, vous pouvez reformuler)")

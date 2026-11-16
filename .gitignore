@@ -10,6 +10,7 @@ venv/
 # Secrets — ne jamais committer la clé API
 .env
 *.env
+secrets.yaml
 
 # Index régénérable depuis les PDF
 data/rules.db

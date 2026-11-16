@@ -17,7 +17,7 @@ from agent_jdr.core.rules_index import Passage, RulesIndex, construire_index
 from agent_jdr.core.fournisseurs.base import IdentifiantsAbsents, ReponseIncomplete
 from agent_jdr.core.scene import Scene
 from agent_jdr.interfaces import cli
-from tests.reglages_test import CONFIG_TEST, CONSIGNES_DIALOGUE
+from tests.reglages_test import CONFIG_TEST, CONSIGNES_DIALOGUE, ecrire_config
 
 REGLAGES = CONFIG_TEST.dialogue
 MAX_TOURS_OUTILS = REGLAGES.recherches_max_par_replique
@@ -232,6 +232,7 @@ def lancer_cli(monkeypatch, chemin_db, lignes, *reponses, persona="orla-venn"):
     client.messages.create.side_effect = list(reponses)
     monkeypatch.setattr(anthropic, "Anthropic", lambda: client)
     entrees = iter(lignes)
+    config = ecrire_config(chemin_db.parent)
 
     def faux_input(invite):
         try:
@@ -241,7 +242,8 @@ def lancer_cli(monkeypatch, chemin_db, lignes, *reponses, persona="orla-venn"):
 
     monkeypatch.setattr(builtins, "input", faux_input)
     code = cli.main(
-        [persona, "--lieu", "Dock 7", "--moment", "Nuit", "--pj", "Kael", "--db", str(chemin_db)]
+        [persona, "--lieu", "Dock 7", "--moment", "Nuit", "--pj", "Kael", "--db", str(chemin_db),
+         "--config", str(config)]
     )
     return code, client
 
@@ -281,9 +283,45 @@ def test_cli_sans_identifiants(monkeypatch, chemin_db, capsys):
     client.messages.create.side_effect = TypeError("Could not resolve authentication method.")
     monkeypatch.setattr(anthropic, "Anthropic", lambda: client)
     monkeypatch.setattr(builtins, "input", lambda invite: "Bonjour")
-    code = cli.main(["orla-venn", "--lieu", "a", "--moment", "b", "--pj", "K", "--db", str(chemin_db)])
+    config = ecrire_config(chemin_db.parent)
+    code = cli.main(["orla-venn", "--lieu", "a", "--moment", "b", "--pj", "K", "--db", str(chemin_db),
+                     "--config", str(config)])
     assert code == 1
-    assert capsys.readouterr().err.startswith("Erreur : Aucun identifiant Anthropic trouvé")
+    erreur = capsys.readouterr().err
+    assert erreur.startswith("Erreur : Aucun identifiant Anthropic trouvé")
+    assert f"Renseignez la clé « personas-apikey » dans {chemin_db.parent / 'secrets.yaml'}" in erreur
+
+
+def test_cli_parler_utilise_la_cle_personas(monkeypatch, chemin_db, capsys):
+    cles = []
+    client = MagicMock()
+    client.messages.create.return_value = texte("Bonsoir.")
+
+    def faux_anthropic(**kw):
+        cles.append(kw.get("api_key"))
+        return client
+
+    monkeypatch.setattr(anthropic, "Anthropic", faux_anthropic)
+    entrees = iter(["Bonsoir ?", "/quitter"])
+    monkeypatch.setattr(builtins, "input", lambda invite: next(entrees))
+    config = ecrire_config(
+        chemin_db.parent, {"recherche-apikey": "sk-ant-regles", "personas-apikey": " sk-ant-pnj "}
+    )
+    code = cli.main(["orla-venn", "--lieu", "a", "--moment", "b", "--pj", "K", "--db", str(chemin_db),
+                     "--config", str(config)])
+    assert code == 0
+    assert cles == ["sk-ant-pnj"]
+    assert "sk-ant" not in capsys.readouterr().out
+
+
+def test_cli_fichier_de_secrets_incorrect(monkeypatch, chemin_db, capsys):
+    config = ecrire_config(chemin_db.parent, {"personas-api-key": "sk-ant-x"})
+    code = cli.main(["orla-venn", "--lieu", "a", "--moment", "b", "--pj", "K", "--config", str(config)])
+    assert code == 1
+    erreur = capsys.readouterr().err
+    assert "secrets.yaml : réglages incorrects" in erreur
+    assert "personas-api-key : réglage inconnu (faute de frappe ?)" in erreur
+    assert "sk-ant-x" not in erreur
 
 
 def test_cli_pnj_inconnu(monkeypatch, chemin_db, capsys):

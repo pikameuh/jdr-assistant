@@ -7,10 +7,12 @@
 #  En cas d'erreur, la commande indique le réglage fautif, sans rien lancer.
 #
 #  Fournisseur : l'entreprise dont le modèle rédige les réponses.
-#    anthropic   (modèles Claude ; clé dans la variable ANTHROPIC_API_KEY)
-#    openai      (modèles GPT ; clé dans la variable OPENAI_API_KEY)
+#    anthropic   (modèles Claude)
+#    openai      (modèles GPT)
 #  Chaque section a son propre fournisseur : on peut en choisir un pour le
 #  dialogue et un autre pour les questions de règles.
+#  Les clés API ne sont pas ici : elles vont dans le fichier de secrets
+#  (réglage « secrets » en bas de ce fichier ; voir MANUEL.md, section 4).
 #
 #  Modèles possibles, du moins cher au plus cher
 #  (prix par million de jetons, entrée / sortie, relevés le 2026-11-16) :
@@ -97,3 +99,5 @@ fichiers:
   dossier_des_pnj: agent_jdr/core/personas
   # Dossier des livres de règles en PDF (utilisé seulement pour créer l'index)
   dossier_des_pdf: rules/MA - Manuel des joueurs 1.5
+  # Fichier des clés API (jamais envoyé sur git ; modèle : secrets.exemple.yaml)
+  secrets: secrets.yaml

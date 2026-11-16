@@ -7,9 +7,12 @@ import yaml
 
 from agent_jdr.core.config import (
     CONFIG_DEFAUT,
+    ENTREE_SECRETS,
     NIVEAUX_DE_REFLEXION,
     ConfigInvalide,
     charger_config,
+    charger_secrets,
+    conseil_cle,
 )
 
 
@@ -129,3 +132,63 @@ def test_modele_incoherent_avec_le_fournisseur(tmp_path, donnees, fournisseur, m
     donnees["questions_de_regles"].update(fournisseur=fournisseur, modele=modele)
     with pytest.raises(ConfigInvalide, match=f"questions_de_regles : le modèle {message}"):
         charger_config(ecrire(tmp_path, donnees))
+
+
+# --- Fichier de secrets ------------------------------------------------------------
+
+
+def test_config_livree_pointe_vers_secrets_yaml():
+    assert charger_config().fichiers.secrets == CONFIG_DEFAUT.parent / "secrets.yaml"
+
+
+def test_modele_de_secrets_livre_valide_et_vide():
+    secrets = charger_secrets(CONFIG_DEFAUT.parent / "secrets.exemple.yaml")
+    assert set(ENTREE_SECRETS.values()) == {"recherche-apikey", "personas-apikey"}
+    assert secrets.recherche is None
+    assert secrets.personas is None
+
+
+def test_secrets_absents_aucune_cle(tmp_path):
+    secrets = charger_secrets(tmp_path / "absent.yaml")
+    assert (secrets.recherche, secrets.personas) == (None, None)
+
+
+def test_secrets_fichier_vide(tmp_path):
+    chemin = tmp_path / "secrets.yaml"
+    chemin.write_text("# rien\n", encoding="utf-8")
+    assert charger_secrets(chemin).personas is None
+
+
+def test_secrets_lus_par_usage(tmp_path):
+    chemin = tmp_path / "secrets.yaml"
+    chemin.write_text('recherche-apikey: " sk-ant-r "\npersonas-apikey: sk-p\n', encoding="utf-8")
+    secrets = charger_secrets(chemin)
+    assert (secrets.recherche, secrets.personas) == ("sk-ant-r", "sk-p")
+    assert "sk-" not in repr(secrets)  # jamais affichée par erreur
+
+
+def test_secrets_entree_inconnue_refusee(tmp_path):
+    chemin = tmp_path / "secrets.yaml"
+    chemin.write_text("recherche_apikey: sk-x\n", encoding="utf-8")
+    with pytest.raises(ConfigInvalide, match="recherche_apikey : réglage inconnu") as e:
+        charger_secrets(chemin)
+    assert "sk-x" not in str(e.value)
+
+
+def test_secrets_syntaxe_incorrecte(tmp_path):
+    chemin = tmp_path / "secrets.yaml"
+    chemin.write_text('personas-apikey: "sk\n', encoding="utf-8")
+    with pytest.raises(ConfigInvalide, match="secrets.yaml : syntaxe YAML incorrecte"):
+        charger_secrets(chemin)
+
+
+def test_secrets_mal_formes(tmp_path):
+    chemin = tmp_path / "secrets.yaml"
+    chemin.write_text("- sk-x\n", encoding="utf-8")
+    with pytest.raises(ConfigInvalide, match="des lignes « nom: valeur »"):
+        charger_secrets(chemin)
+
+
+def test_conseil_cle_nomme_l_entree_et_le_fichier(tmp_path):
+    message = conseil_cle("dialogue", tmp_path / "secrets.yaml")
+    assert message == f"Renseignez la clé « personas-apikey » dans {tmp_path / 'secrets.yaml'} (voir MANUEL.md, section 4)."

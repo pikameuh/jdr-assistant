@@ -57,13 +57,13 @@ Gestionnaire : **uv** (`pyproject.toml`). PyMuPDF est une dépendance de *build*
 
 - Installation : `uv sync`
 - Construire l'index des règles (≈ 8 s) : `uv run python -m agent_jdr.core.rules_index build`
-- Question de règles (réponse en français + sources citées, appel à Claude, nécessite `ANTHROPIC_API_KEY`) : `uv run python -m agent_jdr.core.rules_index search "expliques moi la dispersion d'une grenade"` (`-n 8` = passages envoyés au modèle)
+- Question de règles (réponse en français + sources citées, appel au modèle, nécessite la clé `recherche-apikey`) : `uv run python -m agent_jdr.core.rules_index search "expliques moi la dispersion d'une grenade"` (`-n 8` = passages envoyés au modèle)
 - Débogage de la recherche (liste des passages, sans appel LLM) : `uv run python -m agent_jdr.core.rules_index search "faire le plein" --brut -n 5`
 - Raccourci, mêmes options : `uv run search "faire le plein"` (entrée `[project.scripts]`).
-- Parler à un PNJ (appel à Claude, nécessite la clé) : `uv run parler orla-venn --lieu "Dock 7" --moment "Cycle de nuit" --pj Kael` ; en partie : `/fait <texte>` ajoute un fait à la scène, `/quitter` sort.
+- Parler à un PNJ (appel au modèle, nécessite la clé `personas-apikey`) : `uv run parler orla-venn --lieu "Dock 7" --moment "Cycle de nuit" --pj Kael` ; en partie : `/fait <texte>` ajoute un fait à la scène, `/quitter` sort.
 - Toutes les commandes acceptent `--config autre.yaml`.
 - Manuel utilisateur (non-développeur) : `MANUEL.md`. Le tenir à jour quand une commande, un réglage ou un message d'erreur change.
-- Clé API : `export ANTHROPIC_API_KEY=sk-ant-…` dans `~/.zshrc` (clé créée sur console.anthropic.com). Jamais dans le dépôt.
+- Clés API : dans `secrets.yaml` (racine, ignoré par git ; modèle versionné `secrets.exemple.yaml`), une entrée par usage : `recherche-apikey` (`search`) et `personas-apikey` (`parler`). Chemin réglé par `fichiers.secrets` de `config.yaml`. Entrée vide ou fichier absent → repli sur `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`. Lu par `core/config.py` (`charger_secrets`), transmis au fournisseur par `creer_fournisseur(..., cle_api=…)`. Les tests des commandes utilisent `tests/reglages_test.py::ecrire_config`, jamais le vrai `secrets.yaml`.
 - Tests couches 1–3 : `uv run pytest` (les tests de récupération reconstruisent l'index depuis les PDF dans un dossier temporaire ; ignorés si les PDF sont absents)
 - Évals couche 4 (LLM réel, payant) : `uv run pytest -m eval` (exclues par défaut ; ignorées sans identifiants)
 - Lint : _non configuré_

@@ -7,10 +7,9 @@ from unittest.mock import MagicMock
 
 import openai
 import pytest
-import yaml
 
 from agent_jdr.core import rules_index
-from agent_jdr.core.config import CONFIG_DEFAUT, charger_config
+from agent_jdr.core.config import charger_config
 from agent_jdr.core.dialogue_engine import OUTIL_REGLES, MoteurDialogue
 from agent_jdr.core.fournisseurs.base import ReponseIncomplete
 from agent_jdr.core.fournisseurs.fournisseur_openai import FournisseurOpenAI
@@ -20,7 +19,7 @@ from agent_jdr.core.rules_index import Passage, RulesIndex, construire_index
 from agent_jdr.core.scene import Scene
 from agent_jdr.interfaces import cli
 from tests.openai_factice import appel, message, raisonnement, reponse
-from tests.reglages_test import CONFIG_TEST, CONSIGNES_DIALOGUE
+from tests.reglages_test import CONFIG_TEST, CONSIGNES_DIALOGUE, ecrire_config
 
 REGLAGES = CONFIG_TEST.dialogue.model_copy(update={"fournisseur": "openai", "modele": "gpt-test-dialogue"})
 ORLA = charger_persona(charger_config().fichiers.dossier_des_pnj / "orla-venn.yaml")
@@ -126,17 +125,14 @@ def test_reponse_tronquee_historique_inchange(index):
 # --- Commandes, avec une configuration qui choisit OpenAI ---------------------------------------
 
 
-def config_openai(tmp_path, dialogue=True, regles=True):
-    donnees = yaml.safe_load(CONFIG_DEFAUT.read_text(encoding="utf-8"))
-    racine = str(CONFIG_DEFAUT.parent)
-    donnees["fichiers"] = {k: f"{racine}/{v}" for k, v in donnees["fichiers"].items()}
+def config_openai(tmp_path, dialogue=True, regles=True, secrets=None):
+    openai_ = {"fournisseur": "openai", "modele": "gpt-6.1-sol"}
+    sections = {}
     if dialogue:
-        donnees["dialogue"].update(fournisseur="openai", modele="gpt-6.1-sol")
+        sections["dialogue"] = openai_
     if regles:
-        donnees["questions_de_regles"].update(fournisseur="openai", modele="gpt-6.1-sol")
-    chemin = tmp_path / "config.yaml"
-    chemin.write_text(yaml.safe_dump(donnees, allow_unicode=True), encoding="utf-8")
-    return chemin
+        sections["questions_de_regles"] = openai_
+    return ecrire_config(tmp_path, secrets, **sections)
 
 
 def test_cli_parler_avec_openai(monkeypatch, tmp_path, chemin_db, capsys):
@@ -179,8 +175,31 @@ def test_cli_sans_cle_openai(monkeypatch, tmp_path, chemin_db, capsys):
     code = rules_index.main(["search", "pile", "--db", str(chemin_db), "--config", str(config_openai(tmp_path))])
     assert code == 1
     erreur = capsys.readouterr().err
-    assert erreur.startswith("Erreur : Aucune clé OpenAI trouvée. Définir la variable OPENAI_API_KEY.")
+    assert erreur.startswith(
+        "Erreur : Aucune clé OpenAI trouvée : clé absente du fichier de secrets "
+        "et variable OPENAI_API_KEY non définie."
+    )
+    assert "« recherche-apikey »" in erreur
     assert "Traceback" not in erreur
+
+
+def test_cli_cles_openai_par_usage(monkeypatch, tmp_path, chemin_db, capsys):
+    cles = []
+    client = MagicMock()
+    client.responses.create.side_effect = [reponse(message("Bonsoir, capitaine."))]
+
+    def faux_openai(**kw):
+        cles.append(kw.get("api_key"))
+        return client
+
+    monkeypatch.setattr(openai, "OpenAI", faux_openai)
+    entrees = iter(["Bonsoir.", "/quitter"])
+    monkeypatch.setattr(builtins, "input", lambda invite: next(entrees))
+    config = config_openai(tmp_path, secrets={"recherche-apikey": "sk-regles", "personas-apikey": "sk-pnj"})
+    code = cli.main(["orla-venn", "--lieu", "a", "--moment", "b", "--pj", "K",
+                     "--db", str(chemin_db), "--config", str(config)])
+    assert code == 0
+    assert cles == ["sk-pnj"]
 
 
 # --- Isolation : seuls les modules fournisseur_* importent un SDK ---------------------------------

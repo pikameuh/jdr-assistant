@@ -6,6 +6,7 @@ import anthropic
 import httpx2
 import pytest
 
+from agent_jdr.core.fournisseurs import creer_fournisseur
 from agent_jdr.core.fournisseurs.base import ErreurFournisseur, IdentifiantsAbsents, ReponseIncomplete
 from agent_jdr.core.fournisseurs.fournisseur_anthropic import (
     FournisseurAnthropic,
@@ -97,3 +98,20 @@ def test_erreur_api_convertie():
     f, _ = fournisseur(side_effect=_erreur_http(anthropic.NotFoundError, 404, "model: claude-x"))
     with pytest.raises(ErreurFournisseur, match="API Anthropic : model: claude-x"):
         f.repondre_avec_sources(CONSIGNES_REGLES, PASSAGES, "q")
+
+
+@pytest.mark.parametrize(("cle", "attendu"), [("sk-ant-fichier", {"api_key": "sk-ant-fichier"}), (None, {})])
+def test_cle_api_transmise_au_sdk(monkeypatch, message_factice, cle, attendu):
+    recus = []
+    client = MagicMock()
+    client.messages.create.return_value = message_factice(["ok"])
+
+    def faux_anthropic(**kw):
+        recus.append(kw)
+        return client
+
+    monkeypatch.setattr(anthropic, "Anthropic", faux_anthropic)
+    f = creer_fournisseur(REGLAGES, cle_api=cle)
+    f.repondre_avec_sources(CONSIGNES_REGLES, PASSAGES, "q")
+    f.repondre_avec_sources(CONSIGNES_REGLES, PASSAGES, "q")
+    assert recus == [attendu]  # sans clé : le SDK lit ANTHROPIC_API_KEY ; client créé une fois

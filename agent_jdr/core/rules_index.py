@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from agent_jdr.core.config import ReglagesQuestions
+    from agent_jdr.core.config import Config
 
 VERSION_SCHEMA = 1
 
@@ -211,13 +211,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"[{r.score:.2f}] {r.passage.reference()}")
                 print("    " + r.passage.texte[:200].replace("\n", " ") + "…")
             return 0
-        return _repondre_cli(args.requete, index, config.questions_de_regles, limite)
+        return _repondre_cli(args.requete, index, config, limite)
 
 
-def _repondre_cli(
-    question: str, index: RulesIndex, reglages: ReglagesQuestions, limite: int
-) -> int:
+def _repondre_cli(question: str, index: RulesIndex, config: Config, limite: int) -> int:
     from agent_jdr.core import rules_qa
+    from agent_jdr.core.config import ConfigInvalide, charger_secrets, conseil_cle
     from agent_jdr.core.fournisseurs import creer_fournisseur
     from agent_jdr.core.fournisseurs.base import (
         ErreurFournisseur,
@@ -226,10 +225,19 @@ def _repondre_cli(
     )
 
     try:
+        secrets = charger_secrets(config.fichiers.secrets)
+    except ConfigInvalide as e:
+        print(f"Erreur de configuration : {e}", file=sys.stderr)
+        return 1
+    reglages = config.questions_de_regles
+    try:
         reponse = rules_qa.repondre(
-            question, index, reglages, creer_fournisseur(reglages), limite=limite
+            question, index, reglages, creer_fournisseur(reglages, cle_api=secrets.recherche), limite=limite
         )
-    except (IdentifiantsAbsents, ReponseIncomplete, ErreurFournisseur) as e:
+    except IdentifiantsAbsents as e:
+        print(f"Erreur : {e}\n{conseil_cle('questions_de_regles', config.fichiers.secrets)}", file=sys.stderr)
+        return 1
+    except (ReponseIncomplete, ErreurFournisseur) as e:
         print(f"Erreur : {e}", file=sys.stderr)
         return 1
     print(rules_qa.formater_reponse(reponse))

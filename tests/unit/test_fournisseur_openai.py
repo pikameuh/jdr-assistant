@@ -199,3 +199,16 @@ def test_erreur_api_convertie():
     f, _ = fournisseur(side_effect=_erreur_http(openai.NotFoundError, 404, "model gpt-x does not exist"))
     with pytest.raises(ErreurFournisseur, match="API OpenAI : model gpt-x does not exist"):
         f.repondre_avec_sources(CONSIGNES_REGLES, PASSAGES, "q")
+
+
+def test_cle_api_transmise_au_sdk(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    recus = []
+
+    def faux_openai(**kw):
+        recus.append(kw)
+        return MagicMock()
+
+    monkeypatch.setattr(openai, "OpenAI", faux_openai)
+    FournisseurOpenAI(REGLAGES, cle_api="sk-fichier")._client_ou_defaut()
+    assert recus == [{"api_key": "sk-fichier"}]
